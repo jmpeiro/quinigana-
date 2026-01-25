@@ -1,0 +1,4 @@
+line 1
+line 2 with 'quotes'
+line 3 with `backticks`
+line 4 with $dollar

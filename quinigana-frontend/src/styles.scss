@@ -1,0 +1,217 @@
+@use '@angular/material' as mat;
+@use 'styles/variables' as *;
+@use 'styles/animations';
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  // Light theme (default)
+  --bg-primary: #f8f9fb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f1f5f9;
+  --bg-hover: #f1f5f9;
+
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  --border-color: #e2e8f0;
+  --border-light: rgba(0, 0, 0, 0.06);
+
+  --accent-primary: #{$accent-500};
+  --accent-hover: #{$accent-600};
+  --accent-light: #{$accent-400};
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+
+  --snackbar-bg: #1e293b;
+  --snackbar-text: #f1f5f9;
+
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --nav-border: #e2e8f0;
+  --nav-inactive: #94a3b8;
+
+  --divider-color: rgba(0, 0, 0, 0.08);
+
+  --success: #{$success};
+  --error: #{$error};
+  --warning: #{$warning};
+  --info: #{$info};
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-input: #334155;
+  --bg-hover: #334155;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border-color: #334155;
+  --border-light: rgba(255, 255, 255, 0.06);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --scrollbar-track: #1e293b;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+
+  --snackbar-bg: #334155;
+  --snackbar-text: #f1f5f9;
+
+  --nav-bg: rgba(15, 23, 42, 0.92);
+  --nav-border: #334155;
+  --nav-inactive: #64748b;
+
+  --divider-color: rgba(255, 255, 255, 0.08);
+}
+
+html {
+  height: 100%;
+  @include mat.theme((
+    color: (
+      primary: mat.$blue-palette,
+      tertiary: mat.$yellow-palette,
+    ),
+    typography: Inter,
+    density: 0,
+  ));
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: $font-family;
+  font-size: $font-size-base;
+  margin: 0;
+  height: 100%;
+  line-height: 1.6;
+  padding-bottom: 72px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="light"] body {
+  color-scheme: light;
+}
+
+[data-theme="dark"] body {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: var(--accent-light);
+  }
+}
+
+// Material overrides
+.mat-mdc-form-field {
+  --mdc-filled-text-field-container-color: var(--bg-input);
+  --mdc-filled-text-field-focus-active-indicator-color: var(--accent-primary);
+  --mdc-filled-text-field-label-text-color: var(--text-secondary);
+  --mdc-filled-text-field-input-text-color: var(--text-primary);
+}
+
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary {
+  --mdc-filled-button-container-color: var(--accent-primary);
+  --mdc-filled-button-label-text-color: #fff;
+
+  &:hover {
+    --mdc-filled-button-container-color: var(--accent-hover);
+  }
+}
+
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: var(--snackbar-bg);
+  --mdc-snackbar-supporting-text-color: var(--snackbar-text);
+}
+
+// Card styling
+.card, .mat-mdc-card {
+  background: var(--bg-card) !important;
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+// Dialog styling
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: var(--bg-card);
+}
+
+.mat-mdc-dialog-surface {
+  background: var(--bg-card) !important;
+}
+
+// Menu styling
+.mat-mdc-menu-panel {
+  background: var(--bg-card) !important;
+}
+
+.mat-mdc-menu-item {
+  color: var(--text-primary) !important;
+
+  &:hover {
+    background: var(--bg-hover) !important;
+  }
+}
+
+// Select panel
+.mat-mdc-select-panel {
+  background: var(--bg-card) !important;
+}
+
+.mat-mdc-option {
+  color: var(--text-primary) !important;
+
+  &:hover, &.mat-mdc-option-active {
+    background: var(--bg-hover) !important;
+  }
+}
+
+// Divider
+mat-divider, .mat-divider {
+  border-top-color: var(--divider-color) !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: $radius-full;
+
+  &:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}

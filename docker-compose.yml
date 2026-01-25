@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: quinigana_root
+      MYSQL_DATABASE: quinigana_db
+      MYSQL_USER: quinigana
+      MYSQL_PASSWORD: quinigana_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./quinigana-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: quinigana
+      DB_PASSWORD: quinigana_pass
+      DB_NAME: quinigana_db
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-access-secret-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-refresh-secret-in-production}
+      FRONTEND_URL: http://localhost
+      LOG_LEVEL: info
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./quinigana-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

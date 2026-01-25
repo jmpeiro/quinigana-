@@ -1,0 +1,173 @@
+<div class="profile-container animate-fade-in">
+  @if (user(); as u) {
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="avatar-wrapper">
+          @if (isUploadingAvatar()) {
+            <div class="avatar-placeholder avatar-loading">
+              <mat-spinner diameter="32"></mat-spinner>
+            </div>
+          } @else if (avatarUrl) {
+            <img [src]="avatarUrl" alt="Avatar" class="avatar" />
+          } @else {
+            <div class="avatar-placeholder">{{ initials }}</div>
+          }
+          <button mat-icon-button class="avatar-edit-btn" (click)="avatarInput.click()" [disabled]="isUploadingAvatar()">
+            <mat-icon>photo_camera</mat-icon>
+          </button>
+          <input #avatarInput type="file" accept="image/jpeg,image/png,image/webp" hidden (change)="onAvatarFileSelected($event)" />
+        </div>
+        <div class="user-info">
+          <h2>{{ u.first_name }} {{ u.last_name || '' }}</h2>
+          <p class="email">{{ u.email }}</p>
+          <span class="provider-badge" [class]="u.auth_provider">
+            {{ u.auth_provider === 'both' ? 'Local + Google' : u.auth_provider === 'google' ? 'Google' : 'Email' }}
+          </span>
+        </div>
+      </div>
+
+      @if (u.avatar_url) {
+        <button mat-button class="remove-avatar-btn" (click)="removeAvatar()" [disabled]="isUploadingAvatar()">
+          <mat-icon>delete</mat-icon>
+          Remove avatar
+        </button>
+      }
+
+      <mat-divider></mat-divider>
+
+      @if (isEditing()) {
+        <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="edit-form">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>First name</mat-label>
+            <input matInput formControlName="first_name" />
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Last name</mat-label>
+            <input matInput formControlName="last_name" />
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-stroked-button type="button" (click)="cancelEditing()">Cancel</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="profileForm.invalid || isSaving()">
+              {{ isSaving() ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </form>
+      } @else {
+        <div class="profile-actions">
+          <button mat-stroked-button (click)="startEditing()">
+            <mat-icon>edit</mat-icon>
+            Edit Profile
+          </button>
+        </div>
+      }
+
+      @if (canChangePassword()) {
+        <mat-divider></mat-divider>
+
+        <div class="section">
+          <button mat-stroked-button class="section-toggle" (click)="togglePasswordSection()">
+            <mat-icon>{{ showPasswordSection() ? 'expand_less' : 'lock' }}</mat-icon>
+            {{ showPasswordSection() ? 'Hide' : 'Change Password' }}
+          </button>
+
+          @if (showPasswordSection()) {
+            <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="password-form">
+              <mat-form-field appearance="fill" class="full-width">
+                <mat-label>Current Password</mat-label>
+                <input matInput type="password" formControlName="currentPassword" />
+              </mat-form-field>
+
+              <mat-form-field appearance="fill" class="full-width">
+                <mat-label>New Password</mat-label>
+                <input matInput type="password" formControlName="newPassword" />
+                @if (passwordForm.get('newPassword')?.hasError('pattern') && passwordForm.get('newPassword')?.touched) {
+                  <mat-error>Must include uppercase, lowercase, number, and special character</mat-error>
+                }
+                @if (passwordForm.get('newPassword')?.hasError('minlength') && passwordForm.get('newPassword')?.touched) {
+                  <mat-error>Minimum 8 characters</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="fill" class="full-width">
+                <mat-label>Confirm New Password</mat-label>
+                <input matInput type="password" formControlName="confirmPassword" />
+                @if (passwordForm.get('confirmPassword')?.touched && !passwordsMatch) {
+                  <mat-error>Passwords do not match</mat-error>
+                }
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button mat-flat-button color="primary" type="submit"
+                  [disabled]="passwordForm.invalid || !passwordsMatch || isChangingPassword()">
+                  {{ isChangingPassword() ? 'Changing...' : 'Change Password' }}
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      }
+
+      <!-- Dark Mode Toggle -->
+      <mat-divider></mat-divider>
+      <div class="section theme-section">
+        <div class="theme-row">
+          <div class="theme-info">
+            <mat-icon>{{ themeService.isDarkMode() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+            <div>
+              <h4>Modo Oscuro</h4>
+              <p>{{ themeService.isDarkMode() ? 'Tema oscuro activado' : 'Tema claro activado' }}</p>
+            </div>
+          </div>
+          <mat-slide-toggle
+            [checked]="themeService.isDarkMode()"
+            (change)="themeService.toggle()">
+          </mat-slide-toggle>
+        </div>
+      </div>
+
+      @if (pushService.isSupported()) {
+        <mat-divider></mat-divider>
+        <div class="section push-section">
+          <div class="push-row">
+            <div class="push-info">
+              <mat-icon>notifications_active</mat-icon>
+              <div>
+                <h4>Notificaciones Push</h4>
+                <p>Recibe alertas instantáneas en este dispositivo</p>
+              </div>
+            </div>
+            <mat-slide-toggle
+              [checked]="pushService.isSubscribed()"
+              [disabled]="pushService.isLoading() || pushService.permissionState() === 'denied'"
+              (change)="togglePush()">
+            </mat-slide-toggle>
+          </div>
+          @if (pushService.permissionState() === 'denied') {
+            <p class="push-denied">Permisos bloqueados en el navegador.</p>
+          }
+        </div>
+      }
+
+      <mat-divider></mat-divider>
+
+      <div class="danger-zone">
+        <h3 class="danger-title">Danger Zone</h3>
+        <button mat-stroked-button color="warn" (click)="openDeleteDialog()" [disabled]="isDeletingAccount()">
+          <mat-icon>delete_forever</mat-icon>
+          {{ isDeletingAccount() ? 'Eliminando...' : 'Eliminar Cuenta' }}
+        </button>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <div class="profile-actions">
+        <button mat-stroked-button color="warn" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  }
+</div>

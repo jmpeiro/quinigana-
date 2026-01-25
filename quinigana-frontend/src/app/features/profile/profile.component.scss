@@ -1,0 +1,262 @@
+@use 'styles/variables' as *;
+@use 'styles/mixins' as *;
+
+.profile-container {
+  @include flex-center;
+  min-height: 100vh;
+  padding: $spacing-md;
+}
+
+.profile-card {
+  @include card;
+  width: 100%;
+  max-width: 500px;
+  padding: $spacing-2xl;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-lg;
+
+  .avatar-wrapper {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid $accent-500;
+  }
+
+  .avatar-placeholder {
+    @include flex-center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $accent-500, $accent-600);
+    color: white;
+    font-size: $font-size-xl;
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &.avatar-loading {
+      background: $primary-600;
+    }
+  }
+
+  .avatar-edit-btn {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 28px;
+    height: 28px;
+    background: $accent-500;
+    color: white;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .user-info {
+    h2 {
+      margin: 0 0 $spacing-xs;
+      font-size: $font-size-xl;
+      color: var(--text-primary);
+    }
+
+    .email {
+      margin: 0 0 $spacing-sm;
+      color: var(--text-secondary);
+      font-size: $font-size-sm;
+    }
+
+    .provider-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: $radius-full;
+      font-size: $font-size-xs;
+      font-weight: 600;
+      text-transform: uppercase;
+
+      &.local {
+        background: rgba($info, 0.15);
+        color: $info;
+      }
+
+      &.google {
+        background: rgba($warning, 0.15);
+        color: $warning;
+      }
+
+      &.both {
+        background: rgba($success, 0.15);
+        color: $success;
+      }
+    }
+  }
+}
+
+.remove-avatar-btn {
+  color: var(--text-muted);
+  font-size: $font-size-xs;
+  margin-bottom: $spacing-md;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+  }
+
+  &:hover {
+    color: $error;
+  }
+}
+
+mat-divider {
+  border-top-color: var(--divider-color);
+  margin: $spacing-lg 0;
+}
+
+.edit-form {
+  @include flex-column;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  gap: $spacing-md;
+  justify-content: flex-end;
+  margin-top: $spacing-sm;
+}
+
+.profile-actions {
+  display: flex;
+  gap: $spacing-md;
+
+  button {
+    flex: 1;
+    height: 44px;
+    border-radius: $radius-md !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+  }
+}
+
+.section {
+  margin-top: $spacing-md;
+}
+
+.section-toggle {
+  width: 100%;
+  height: 44px;
+  border-radius: $radius-md !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+}
+
+.password-form {
+  @include flex-column;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.theme-section, .push-section {
+  .theme-row, .push-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+  }
+
+  .theme-info, .push-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    mat-icon {
+      color: var(--accent-primary, $accent-500);
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+
+    h4 {
+      margin: 0;
+      font-size: $font-size-base;
+      color: var(--text-primary, $neutral-100);
+    }
+
+    p {
+      margin: 2px 0 0;
+      font-size: $font-size-xs;
+      color: var(--text-muted, $neutral-400);
+    }
+  }
+
+  .push-denied {
+    margin: $spacing-sm 0 0;
+    font-size: $font-size-xs;
+    color: $warning;
+  }
+}
+
+.danger-zone {
+  .danger-title {
+    color: $error;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 $spacing-md;
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+  }
+}
+
+.delete-confirm {
+  .delete-warning {
+    color: $neutral-400;
+    font-size: $font-size-sm;
+    margin: 0 0 $spacing-md;
+    line-height: 1.5;
+  }
+
+  .delete-actions {
+    display: flex;
+    gap: $spacing-md;
+    justify-content: flex-end;
+  }
+}
+
+.btn-spinner {
+  display: inline-block;
+  margin-right: 8px;
+
+  ::ng-deep circle {
+    stroke: white;
+  }
+}

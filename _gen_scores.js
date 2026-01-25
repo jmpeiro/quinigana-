@@ -1,0 +1,1 @@
+{"target":"c:/APPS/QUINIELA/quinigana-frontend/src/app/features/quiniela/scores/scores.component.ts"}

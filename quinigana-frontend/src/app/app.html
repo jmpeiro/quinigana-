@@ -1,0 +1,10 @@
+@if (isAuthenticated()) {
+  <div class="app-layout" [class.sidebar-collapsed]="sidebarCollapsed()">
+    <app-sidebar (collapsedChange)="onSidebarCollapse($event)" />
+    <main class="main-content">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <router-outlet />
+}

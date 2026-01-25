@@ -1,0 +1,133 @@
+@use 'styles/variables' as *;
+@use 'styles/mixins' as *;
+
+.auth-container {
+  @include flex-center;
+  min-height: 100vh;
+  padding: $spacing-md;
+  background: linear-gradient(135deg, $primary-900 0%, $primary-800 50%, $primary-700 100%);
+}
+
+.auth-card {
+  @include card;
+  width: 100%;
+  max-width: 460px;
+  padding: $spacing-xl;
+
+  @include respond-to(md) {
+    padding: $spacing-2xl;
+  }
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: $spacing-lg;
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-sm;
+  }
+
+  .logo-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+  }
+
+  .logo {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    color: $accent-500;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    color: $neutral-400;
+    margin: 0;
+    font-size: $font-size-sm;
+  }
+}
+
+.auth-form {
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+.name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-md;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.submit-btn {
+  width: 100%;
+  height: 48px;
+  font-size: $font-size-base;
+  font-weight: 600;
+  border-radius: $radius-md !important;
+  margin-top: $spacing-sm;
+  transition: transform $transition-fast, box-shadow $transition-fast;
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: $shadow-accent;
+  }
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: $spacing-lg 0;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  span {
+    padding: 0 $spacing-md;
+    color: $neutral-500;
+    font-size: $font-size-sm;
+  }
+}
+
+.google-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: $radius-md !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: $neutral-200 !important;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  transition: background $transition-fast, border-color $transition-fast;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+  }
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: $spacing-lg;
+  color: $neutral-400;
+  font-size: $font-size-sm;
+
+  a {
+    font-weight: 600;
+  }
+}
