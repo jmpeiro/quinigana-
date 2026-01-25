@@ -62,7 +62,10 @@
       "Bash(./mysql.exe:*)",
       "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SOURCE c:/APPS/QUINIELA/quinigana-backend/database/migrations/014_create_gamification_tables.sql\" quinigana_db)",
       "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root quinigana_db -e \"SELECT COUNT\\(*\\) as badges FROM badge_definitions; SELECT COUNT\\(*\\) as user_xp FROM user_xp; SELECT * FROM user_xp LIMIT 5;\")",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(gh auth status:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
     ]
   }
 }
