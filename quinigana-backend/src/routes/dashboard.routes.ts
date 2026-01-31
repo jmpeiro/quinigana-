@@ -6,5 +6,6 @@ const router = Router();
 
 router.get('/', authMiddleware, DashboardController.getDashboard);
 router.get('/standings', authMiddleware, DashboardController.getStandings);
+router.get('/test-db', authMiddleware, DashboardController.testDb);
 
 export default router;

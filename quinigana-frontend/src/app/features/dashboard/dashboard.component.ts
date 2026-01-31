@@ -1285,22 +1285,60 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadDashboard(): void {
+    console.log('[DASHBOARD COMPONENT] Loading dashboard...');
     this.loading.set(true);
     this.error.set(false);
     forkJoin({
-      dashboard: this.dashboardService.getDashboardData().pipe(catchError(() => of({ success: false, data: null }))),
-      stats: this.statsService.getPersonalStats().pipe(catchError(() => of({ success: false, data: null }))),
-      gamification: this.gamificationService.getMyGamification().pipe(catchError(() => of({ success: false, data: null }))),
-      quinielas: this.groupQuinielaService.getMyActiveQuinielas().pipe(catchError(() => of({ success: false, data: [] }))),
+      dashboard: this.dashboardService.getDashboardData().pipe(
+        catchError((error) => {
+          console.error('[DASHBOARD COMPONENT] Dashboard API error:', error);
+          console.error('[DASHBOARD COMPONENT] Error details:', {
+            status: error?.status,
+            statusText: error?.statusText,
+            message: error?.error?.error?.message,
+            fullError: error?.error
+          });
+          return of({ success: false, data: null });
+        })
+      ),
+      stats: this.statsService.getPersonalStats().pipe(
+        catchError((error) => {
+          console.error('[DASHBOARD COMPONENT] Stats API error:', error);
+          return of({ success: false, data: null });
+        })
+      ),
+      gamification: this.gamificationService.getMyGamification().pipe(
+        catchError((error) => {
+          console.error('[DASHBOARD COMPONENT] Gamification API error:', error);
+          return of({ success: false, data: null });
+        })
+      ),
+      quinielas: this.groupQuinielaService.getMyActiveQuinielas().pipe(
+        catchError((error) => {
+          console.error('[DASHBOARD COMPONENT] Quinielas API error:', error);
+          return of({ success: false, data: [] });
+        })
+      ),
     }).subscribe({
       next: ({ dashboard, stats, gamification, quinielas }) => {
+        console.log('[DASHBOARD COMPONENT] All requests completed:', {
+          dashboardSuccess: dashboard.success,
+          statsSuccess: stats.success,
+          gamificationSuccess: gamification.success,
+          quinielasSuccess: quinielas.success
+        });
+
         if (dashboard.success && dashboard.data) {
+          console.log('[DASHBOARD COMPONENT] Dashboard data loaded successfully');
           this.data.set(dashboard.data);
           if (dashboard.data.activeJornada) {
             this.startCountdown(dashboard.data.activeJornada.deadline);
             this.startLiveScores(dashboard.data.activeJornada.id);
           }
+        } else {
+          console.warn('[DASHBOARD COMPONENT] Dashboard data failed or empty');
         }
+
         if (stats.success && stats.data) {
           this.personalStats.set(stats.data);
         }
@@ -1316,7 +1354,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.loading.set(false);
       },
-      error: () => {
+      error: (error) => {
+        console.error('[DASHBOARD COMPONENT] ForkJoin error:', error);
         this.loading.set(false);
         this.error.set(true);
       },

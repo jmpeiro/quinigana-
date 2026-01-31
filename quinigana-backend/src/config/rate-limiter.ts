@@ -3,7 +3,7 @@ import { env } from './environment';
 
 export const generalLimiter = rateLimit({
   windowMs: env.rateLimit.windowMs,
-  max: 1000, // High limit for development
+  max: 5000, // Temporarily increased for debugging
   message: {
     success: false,
     error: {
@@ -31,7 +31,7 @@ export const inviteLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50, // Increased for development
+  max: 500, // Temporarily increased for debugging
   message: {
     success: false,
     error: {

@@ -11,17 +11,17 @@ const COOKIE_MAX_AGE_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days (remember me)
 
 const getRefreshCookieOptions = (rememberMe: boolean) => ({
   httpOnly: true,
-  secure: env.nodeEnv === 'production',
-  sameSite: 'strict' as const,
-  path: '/api/auth/refresh',
+  secure: false, // Set to false for HTTP (change to true when using HTTPS)
+  sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for better compatibility
+  path: '/', // Changed from '/api/auth/refresh' to '/' to be available everywhere
   maxAge: rememberMe ? COOKIE_MAX_AGE_LONG : COOKIE_MAX_AGE_SHORT,
 });
 
 const LOGOUT_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: env.nodeEnv === 'production',
-  sameSite: 'strict' as const,
-  path: '/api/auth/refresh',
+  secure: false, // Set to false for HTTP (change to true when using HTTPS)
+  sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for better compatibility
+  path: '/', // Changed from '/api/auth/refresh' to '/' to be available everywhere
 };
 
 export class AuthController {
