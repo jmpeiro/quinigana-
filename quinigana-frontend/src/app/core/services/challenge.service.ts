@@ -1,12 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/user.model';
 import {
   ChallengeWithDetails,
   ChallengeStats,
   RivalryStats,
+  HeadToHeadResponse,
   CreateChallengeDto,
   PaginatedChallenges,
 } from '../models/challenge.model';
@@ -87,9 +88,26 @@ export class ChallengeService {
     );
   }
 
-  getHeadToHead(opponentId: number): Observable<ApiResponse<RivalryStats | null>> {
-    return this.http.get<ApiResponse<RivalryStats | null>>(
-      `${this.apiUrl}/challenges/head-to-head/${opponentId}`
+  getHeadToHead(opponentId: number, limit: number = 10): Observable<ApiResponse<HeadToHeadResponse>> {
+    return this.http.get<ApiResponse<HeadToHeadResponse>>(
+      `${this.apiUrl}/challenges/head-to-head/${opponentId}?limit=${limit}`
+    );
+  }
+
+  autoGenerateWeekly(): Observable<ApiResponse<{
+    created: number;
+    skippedExisting: number;
+    skippedInsufficientMembers: number;
+    jornadasProcessed: number;
+  }>> {
+    return this.http.post<ApiResponse<{
+      created: number;
+      skippedExisting: number;
+      skippedInsufficientMembers: number;
+      jornadasProcessed: number;
+    }>>(
+      `${this.apiUrl}/challenges/auto-generate`,
+      {}
     );
   }
 }

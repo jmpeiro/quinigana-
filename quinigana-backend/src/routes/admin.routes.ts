@@ -15,6 +15,7 @@ router.patch('/users/:id/toggle-active', AdminController.toggleUserActive);
 
 // Stats
 router.get('/stats', AdminController.getGlobalStats);
+router.get('/ops', AdminController.getOpsMetrics);
 
 // Groups
 router.get('/groups', AdminController.getAllGroups);

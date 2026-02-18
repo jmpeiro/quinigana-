@@ -87,10 +87,11 @@ interface EditMatchRow {
               <button mat-raised-button class="btn-quiniela" (click)="autoFillQuiniela()" [disabled]="loadingQuiniela()">
                 @if (loadingQuiniela()) {
                   <mat-spinner diameter="18"></mat-spinner>
-                } @else {
-                  <mat-icon>sports_soccer</mat-icon>
-                  La Quiniela (15)
                 }
+                @if (!loadingQuiniela()) {
+                  <mat-icon>sports_soccer</mat-icon>
+                }
+                <span>La Quiniela (15)</span>
               </button>
               <span class="autofill-separator">o</span>
               <mat-form-field appearance="outline" class="autofill-field">
@@ -111,10 +112,11 @@ interface EditMatchRow {
               <button mat-raised-button class="btn-autofill" (click)="autoFillMatches()" [disabled]="loadingAutoFill()">
                 @if (loadingAutoFill()) {
                   <mat-spinner diameter="18"></mat-spinner>
-                } @else {
-                  <mat-icon>download</mat-icon>
-                  Auto-rellenar
                 }
+                @if (!loadingAutoFill()) {
+                  <mat-icon>download</mat-icon>
+                }
+                <span>Auto-rellenar</span>
               </button>
             </div>
 
@@ -156,10 +158,11 @@ interface EditMatchRow {
               <button mat-raised-button class="btn-submit" (click)="createJornada()" [disabled]="creatingJornada()">
                 @if (creatingJornada()) {
                   <mat-spinner diameter="20"></mat-spinner>
-                } @else {
-                  <mat-icon>save</mat-icon>
-                  Crear Jornada
                 }
+                @if (!creatingJornada()) {
+                  <mat-icon>save</mat-icon>
+                }
+                <span>Crear Jornada</span>
               </button>
             </div>
           </div>
@@ -202,10 +205,11 @@ interface EditMatchRow {
                 <button mat-raised-button class="btn-autofill" (click)="autoFillResults()" [disabled]="loadingAutoFillResults()">
                   @if (loadingAutoFillResults()) {
                     <mat-spinner diameter="18"></mat-spinner>
-                  } @else {
-                    <mat-icon>download</mat-icon>
-                    Auto-rellenar
                   }
+                  @if (!loadingAutoFillResults()) {
+                    <mat-icon>download</mat-icon>
+                  }
+                  <span>Auto-rellenar</span>
                 </button>
               </div>
 
@@ -236,10 +240,11 @@ interface EditMatchRow {
                 <button mat-raised-button class="btn-submit" (click)="submitResults()" [disabled]="submittingResults()">
                   @if (submittingResults()) {
                     <mat-spinner diameter="20"></mat-spinner>
-                  } @else {
-                    <mat-icon>send</mat-icon>
-                    Enviar Resultados
                   }
+                  @if (!submittingResults()) {
+                    <mat-icon>send</mat-icon>
+                  }
+                  <span>Enviar Resultados</span>
                 </button>
               </div>
             }
@@ -305,10 +310,11 @@ interface EditMatchRow {
                   <button mat-raised-button color="warn" (click)="reopenJornada(jornada)" [disabled]="reopening()">
                     @if (reopening()) {
                       <mat-spinner diameter="16"></mat-spinner>
-                    } @else {
-                      <mat-icon>lock_open</mat-icon>
-                      Reabrir
                     }
+                    @if (!reopening()) {
+                      <mat-icon>lock_open</mat-icon>
+                    }
+                    <span>Reabrir</span>
                   </button>
                 </div>
               } @empty {
@@ -332,10 +338,11 @@ interface EditMatchRow {
                   <button mat-raised-button color="warn" (click)="deleteJornada(jornada)" [disabled]="deleting()">
                     @if (deleting()) {
                       <mat-spinner diameter="16"></mat-spinner>
-                    } @else {
-                      <mat-icon>delete</mat-icon>
-                      Eliminar
                     }
+                    @if (!deleting()) {
+                      <mat-icon>delete</mat-icon>
+                    }
+                    <span>Eliminar</span>
                   </button>
                 </div>
               } @empty {

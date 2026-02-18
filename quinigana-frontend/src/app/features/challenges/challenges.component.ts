@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -13,8 +12,8 @@ import {
   ChallengeWithDetails,
   ChallengeStats,
   RivalryStats,
+  HeadToHeadResponse,
 } from '../../core/models/challenge.model';
-import { ErrorCardComponent } from '../../shared/components/error-card/error-card.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { CreateChallengeDialogComponent } from './create-challenge-dialog.component';
 
@@ -29,17 +28,24 @@ import { CreateChallengeDialogComponent } from './create-challenge-dialog.compon
     MatMenuModule,
     MatDialogModule,
     MatSnackBarModule,
-    ErrorCardComponent,
     SkeletonComponent,
   ],
   template: `
     <div class="challenges-container">
       <div class="page-header">
         <h1 class="page-title">Retos 1vs1</h1>
-        <button mat-flat-button color="primary" class="create-btn" (click)="openCreateDialog()">
-          <mat-icon>add</mat-icon>
-          Nuevo Reto
-        </button>
+        <div class="header-actions">
+          @if (isAdmin()) {
+            <button mat-stroked-button class="auto-btn" (click)="autoGenerateWeekly()" [disabled]="loadingAutoGenerate()">
+              <mat-icon>auto_awesome</mat-icon>
+              Auto semanal
+            </button>
+          }
+          <button mat-flat-button color="primary" class="create-btn" (click)="openCreateDialog()">
+            <mat-icon>add</mat-icon>
+            Nuevo Reto
+          </button>
+        </div>
       </div>
 
       <!-- Stats Summary -->
@@ -297,8 +303,38 @@ import { CreateChallengeDialogComponent } from './create-challenge-dialog.compon
                       {{ rival.net_points > 0 ? '+' : '' }}{{ rival.net_points }}
                     </span>
                     <span class="total-matches">{{ rival.total_challenges }} retos</span>
+                    <button mat-stroked-button class="h2h-btn" (click)="loadHeadToHead(rival.opponent_id)">Ver H2H</button>
                   </div>
                 </div>
+
+                @if (selectedRivalId() === rival.opponent_id) {
+                  <div class="h2h-panel">
+                    @if (loadingHeadToHead()) {
+                      <app-skeleton variant="card" height="80px" />
+                    } @else if (!selectedHeadToHead()?.recent?.length) {
+                      <div class="h2h-empty">Sin historial reciente.</div>
+                    } @else {
+                      <div class="h2h-summary">
+                        <span>Total: {{ selectedHeadToHead()?.stats?.total_challenges || 0 }}</span>
+                        <span>Record: {{ selectedHeadToHead()?.stats?.wins || 0 }}-{{ selectedHeadToHead()?.stats?.losses || 0 }}-{{ selectedHeadToHead()?.stats?.draws || 0 }}</span>
+                        <span>Neto: {{ selectedHeadToHead()?.stats?.net_points || 0 }}</span>
+                      </div>
+                      @for (item of selectedHeadToHead()!.recent; track item.challenge_id) {
+                        <div class="h2h-item">
+                          <span class="h2h-jornada">{{ item.jornada_name }}</span>
+                          <span class="h2h-score">{{ item.challenger_score }} - {{ item.challenged_score }}</span>
+                          @if (item.winner_id === currentUserId) {
+                            <span class="h2h-result win">Ganado</span>
+                          } @else if (item.winner_id === null) {
+                            <span class="h2h-result draw">Empate</span>
+                          } @else {
+                            <span class="h2h-result loss">Perdido</span>
+                          }
+                        </div>
+                      }
+                    }
+                  </div>
+                }
               }
             }
           </div>
@@ -315,11 +351,13 @@ import { CreateChallengeDialogComponent } from './create-challenge-dialog.compon
       justify-content: space-between;
       margin-bottom: 1.5rem;
     }
+    .header-actions { display: flex; gap: 0.5rem; }
     .page-title { color: var(--text-primary, #1e293b); font-size: 1.5rem; margin: 0; }
     .create-btn {
       background: linear-gradient(135deg, #c8a84b 0%, #dfc56a 100%);
       color: #1e293b;
     }
+    .auto-btn { border-color: rgba(200, 168, 75, 0.45); color: #7a6220; }
 
     .stats-grid {
       display: grid;
@@ -525,6 +563,7 @@ import { CreateChallengeDialogComponent } from './create-challenge-dialog.compon
       align-items: flex-end;
       gap: 2px;
     }
+    .h2h-btn { margin-top: 0.4rem; }
     .net-points {
       font-size: 1.1rem;
       font-weight: 700;
@@ -533,6 +572,39 @@ import { CreateChallengeDialogComponent } from './create-challenge-dialog.compon
     .net-points.positive { color: #22c55e; }
     .net-points.negative { color: #ef4444; }
     .total-matches { font-size: 0.7rem; color: var(--text-muted, #94a3b8); }
+
+    .h2h-panel {
+      background: var(--bg-secondary, #f8f9fb);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 12px;
+      padding: 0.75rem;
+      margin-top: -0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .h2h-summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+      color: var(--text-secondary, #64748b);
+      margin-bottom: 0.5rem;
+    }
+    .h2h-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.45rem 0.25rem;
+      border-top: 1px dashed var(--border-color, #e2e8f0);
+      font-size: 0.8rem;
+    }
+    .h2h-item:first-of-type { border-top: none; }
+    .h2h-jornada { color: var(--text-primary, #1e293b); }
+    .h2h-score { font-weight: 600; color: var(--text-primary, #1e293b); }
+    .h2h-result.win { color: #22c55e; font-weight: 600; }
+    .h2h-result.loss { color: #ef4444; font-weight: 600; }
+    .h2h-result.draw { color: #64748b; font-weight: 600; }
+    .h2h-empty { font-size: 0.8rem; color: var(--text-muted, #94a3b8); }
 
     @media (max-width: 600px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -547,20 +619,23 @@ export class ChallengesComponent implements OnInit {
   private authService = inject(AuthService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
-  private router = inject(Router);
 
   stats = signal<ChallengeStats | null>(null);
   pendingChallenges = signal<ChallengeWithDetails[]>([]);
   activeChallenges = signal<ChallengeWithDetails[]>([]);
   completedChallenges = signal<ChallengeWithDetails[]>([]);
   rivalries = signal<RivalryStats[]>([]);
+  selectedHeadToHead = signal<HeadToHeadResponse | null>(null);
+  selectedRivalId = signal<number | null>(null);
 
   loadingPending = signal(true);
   loadingActive = signal(false);
   loadingCompleted = signal(false);
   loadingRivalries = signal(false);
+  loadingHeadToHead = signal(false);
+  loadingAutoGenerate = signal(false);
 
-  private currentUserId = 0;
+  currentUserId = 0;
 
   ngOnInit(): void {
     this.currentUserId = this.authService.currentUser()?.id ?? 0;
@@ -723,5 +798,57 @@ export class ChallengesComponent implements OnInit {
 
   getAvatarUrl(url: string | null): string {
     return url ? `url(${url})` : '';
+  }
+
+  loadHeadToHead(opponentId: number): void {
+    if (this.selectedRivalId() === opponentId && this.selectedHeadToHead()) {
+      this.selectedRivalId.set(null);
+      this.selectedHeadToHead.set(null);
+      return;
+    }
+
+    this.selectedRivalId.set(opponentId);
+    this.loadingHeadToHead.set(true);
+    this.challengeService.getHeadToHead(opponentId, 10).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.selectedHeadToHead.set(response.data);
+        } else {
+          this.selectedHeadToHead.set(null);
+        }
+        this.loadingHeadToHead.set(false);
+      },
+      error: () => {
+        this.selectedHeadToHead.set(null);
+        this.loadingHeadToHead.set(false);
+      },
+    });
+  }
+
+  isAdmin(): boolean {
+    return !!this.authService.currentUser()?.is_admin;
+  }
+
+  autoGenerateWeekly(): void {
+    this.loadingAutoGenerate.set(true);
+    this.challengeService.autoGenerateWeekly().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.snackBar.open(
+            `Auto-generados: ${response.data.created} retos`,
+            'OK',
+            { duration: 3500 }
+          );
+          this.loadPendingChallenges();
+        } else {
+          this.snackBar.open('No se pudieron autogenerar retos', 'OK', { duration: 3000 });
+        }
+        this.loadingAutoGenerate.set(false);
+      },
+      error: () => {
+        this.loadingAutoGenerate.set(false);
+        this.snackBar.open('Error al autogenerar retos', 'OK', { duration: 3000 });
+      },
+    });
   }
 }

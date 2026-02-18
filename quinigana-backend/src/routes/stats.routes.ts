@@ -7,6 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/me', StatsController.getPersonalStats);
+router.get('/me/streaks', StatsController.getStreaks);
 router.get('/me/predictions', StatsController.getPredictionHistory);
 router.get('/me/heatmap', StatsController.getPredictionsHeatmap);
 router.get('/export/csv', StatsController.exportCsv);

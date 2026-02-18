@@ -19,6 +19,14 @@ export class JornadaModel {
     return rows.length > 0 ? (rows[0] as Jornada) : null;
   }
 
+  static async findBySeasonAndNumber(season: string, jornadaNumber: number): Promise<Jornada | null> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT * FROM jornadas WHERE season = ? AND jornada_number = ? LIMIT 1',
+      [season, jornadaNumber]
+    );
+    return rows.length > 0 ? (rows[0] as Jornada) : null;
+  }
+
   static async findAll(): Promise<Jornada[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM jornadas ORDER BY season DESC, jornada_number DESC'

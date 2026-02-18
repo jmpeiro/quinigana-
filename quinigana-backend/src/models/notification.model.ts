@@ -5,8 +5,21 @@ import { Notification, CreateNotificationDto } from '../types';
 export class NotificationModel {
   static async create(data: CreateNotificationDto): Promise<number> {
     const [result] = await pool.execute<ResultSetHeader>(
-      `INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, ?, ?, ?, ?)`,
-      [data.user_id, data.type, data.title, data.message, data.link || null]
+      `INSERT INTO notifications
+       (user_id, type, title, message, link, action_type, action_group_id, action_jornada_id, action_proposal_id, action_challenge_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.user_id,
+        data.type,
+        data.title,
+        data.message,
+        data.link || null,
+        data.actionType || null,
+        data.actionTarget?.groupId || null,
+        data.actionTarget?.jornadaId || null,
+        data.actionTarget?.proposalId || null,
+        data.actionTarget?.challengeId || null,
+      ]
     );
     return result.insertId;
   }
@@ -14,11 +27,24 @@ export class NotificationModel {
   static async createBulk(notifications: CreateNotificationDto[]): Promise<void> {
     if (notifications.length === 0) return;
 
-    const values = notifications.map(() => '(?, ?, ?, ?, ?)').join(', ');
-    const params = notifications.flatMap(n => [n.user_id, n.type, n.title, n.message, n.link || null]);
+    const values = notifications.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const params = notifications.flatMap(n => [
+      n.user_id,
+      n.type,
+      n.title,
+      n.message,
+      n.link || null,
+      n.actionType || null,
+      n.actionTarget?.groupId || null,
+      n.actionTarget?.jornadaId || null,
+      n.actionTarget?.proposalId || null,
+      n.actionTarget?.challengeId || null,
+    ]);
 
     await pool.execute(
-      `INSERT INTO notifications (user_id, type, title, message, link) VALUES ${values}`,
+      `INSERT INTO notifications
+       (user_id, type, title, message, link, action_type, action_group_id, action_jornada_id, action_proposal_id, action_challenge_id)
+       VALUES ${values}`,
       params
     );
   }

@@ -5,10 +5,42 @@ import { ProposalModel } from '../models/proposal.model';
 import { NotificationService } from './notification.service';
 import { QuinielaScraper } from './quiniela-scraper.service';
 import { CreateJornadaDto, SubmitResultsDto } from '../types';
+import { findLiveResultByHomeTeam } from '../utils/team-name.util';
 
 export class JornadaService {
   static async createJornada(data: CreateJornadaDto) {
-    const jornadaId = await JornadaModel.create(data.name, data.season, data.jornada_number, data.deadline);
+    const existing = await JornadaModel.findBySeasonAndNumber(data.season, data.jornada_number);
+    if (existing) {
+      throw {
+        statusCode: 409,
+        code: 'JORNADA_EXISTS',
+        message: `Jornada ${data.jornada_number} already exists for season ${data.season}`,
+      };
+    }
+
+    const matchNumbers = data.matches.map(match => match.match_number);
+    if (new Set(matchNumbers).size !== matchNumbers.length) {
+      throw {
+        statusCode: 400,
+        code: 'DUPLICATE_MATCH_NUMBERS',
+        message: 'Match numbers must be unique within the jornada',
+      };
+    }
+
+    let jornadaId: number;
+    try {
+      jornadaId = await JornadaModel.create(data.name, data.season, data.jornada_number, data.deadline);
+    } catch (error: any) {
+      if (error?.code === 'ER_DUP_ENTRY') {
+        throw {
+          statusCode: 409,
+          code: 'JORNADA_EXISTS',
+          message: `Jornada ${data.jornada_number} already exists for season ${data.season}`,
+        };
+      }
+      throw error;
+    }
+
     await MatchModel.createMany(jornadaId, data.matches);
 
     // Notify all active users about new jornada
@@ -64,19 +96,9 @@ export class JornadaService {
       let sign: string | null = null;
       let status = 'SCHEDULED';
 
-      // Try live data from scraper (keyed by home team name lowercase)
+      // Try live data from scraper using normalized/fuzzy home-team matching
       if (liveResults) {
-        const dbName = m.home_team.toLowerCase().replace(/\./g, '').trim();
-        let live = liveResults.get(dbName);
-        // Fuzzy match: DB name may be abbreviated (e.g. "Atlético de Ma" vs "Atlético de Madrid")
-        if (!live) {
-          for (const [key, val] of liveResults) {
-            if (key.startsWith(dbName) || dbName.startsWith(key.replace(/\./g, ''))) {
-              live = val;
-              break;
-            }
-          }
-        }
+        const live = findLiveResultByHomeTeam(liveResults, m.home_team);
         if (live) {
           homeScore = live.home_score;
           awayScore = live.away_score;
@@ -132,3 +154,4 @@ export class JornadaService {
     return JornadaModel.findByIdWithMatches(jornadaId);
   }
 }
+

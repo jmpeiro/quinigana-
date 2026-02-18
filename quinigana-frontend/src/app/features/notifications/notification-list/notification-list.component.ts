@@ -120,9 +120,8 @@ export class NotificationListComponent implements OnInit {
         this.notifications.update(list => list.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
       });
     }
-    if (notif.link) {
-      this.router.navigateByUrl(notif.link);
-    }
+    const route = this.resolveRoute(notif);
+    if (route) this.router.navigateByUrl(route);
   }
 
   markAllRead(): void {
@@ -153,7 +152,31 @@ export class NotificationListComponent implements OnInit {
       case 'vote_needed': return 'how_to_vote';
       case 'results_published': return 'emoji_events';
       case 'invitation_received': return 'group_add';
+      case 'badge_unlocked': return 'workspace_premium';
+      case 'challenge_received': return 'sports_martial_arts';
+      case 'challenge_accepted': return 'flag';
+      case 'challenge_result': return 'military_tech';
+      case 'league_update': return 'leaderboard';
       default: return 'notifications';
     }
+  }
+
+  private resolveRoute(notif: AppNotification): string | null {
+    if (notif.actionType) {
+      if (notif.actionType === 'open_proposal' && notif.actionTarget?.groupId && notif.actionTarget?.proposalId) {
+        return `/quiniela/groups/${notif.actionTarget.groupId}/proposals/${notif.actionTarget.proposalId}`;
+      }
+      if (notif.actionType === 'open_jornada' && notif.actionTarget?.jornadaId) {
+        return `/quiniela/jornadas/${notif.actionTarget.jornadaId}`;
+      }
+      if (notif.actionType === 'open_invite') {
+        return '/groups/invitations';
+      }
+      if (notif.actionType === 'open_challenge') {
+        return '/challenges';
+      }
+    }
+
+    return notif.link;
   }
 }

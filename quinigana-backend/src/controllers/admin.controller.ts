@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AdminService } from '../services/admin.service';
+import { OpsMetricsService } from '../services/ops-metrics.service';
 import { FootballDataService } from '../services/football-data.service';
 import { QuinielaScraper } from '../services/quiniela-scraper.service';
 import { sendSuccess, sendError } from '../utils/response.util';
@@ -65,6 +66,16 @@ export class AdminController {
       sendSuccess(res, data);
     } catch {
       sendError(res, 'INTERNAL_ERROR', 'Failed to fetch stats', 500);
+    }
+  }
+
+  static async getOpsMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 10));
+      const snapshot = OpsMetricsService.snapshot(limit);
+      sendSuccess(res, snapshot);
+    } catch {
+      sendError(res, 'INTERNAL_ERROR', 'Failed to fetch ops metrics', 500);
     }
   }
 

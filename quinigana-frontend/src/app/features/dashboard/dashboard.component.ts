@@ -164,20 +164,26 @@ import { StandingsComponent } from '../../shared/components/standings/standings.
                   }
                 </div>
               }
-              <div class="matches-list">
-                @for (m of liveMatches(); track m.match_number) {
-                  <div class="match-row" [class.match-live]="m.status === 'IN_PLAY'" [class.match-finished]="m.status === 'FINISHED'">
-                    <span class="match-num">{{ m.match_number }}</span>
-                    <span class="team home">{{ m.home_team }}</span>
-                    <span class="score">{{ m.home_score ?? '-' }} - {{ m.away_score ?? '-' }}</span>
-                    <span class="team away">{{ m.away_team }}</span>
-                    <span class="sign" [class.sign-1]="m.sign === '1'" [class.sign-x]="m.sign === 'X'" [class.sign-2]="m.sign === '2'">{{ m.sign || '-' }}</span>
-                    @if (getPrediction(m.match_number); as pred) {
-                      <span class="my-pred" [class.pred-hit]="pred.prediction_1x2 === m.sign" [class.pred-miss]="m.sign && pred.prediction_1x2 !== m.sign">{{ pred.prediction_1x2 }}</span>
-                    }
-                  </div>
-                }
-              </div>
+              @if (hasRenderableLiveMatches()) {
+                <div class="matches-list">
+                  @for (m of visibleLiveMatches(); track m.match_number) {
+                    <div class="match-row" [class.match-live]="m.status === 'IN_PLAY'" [class.match-finished]="m.status === 'FINISHED'">
+                      <span class="match-num">{{ m.match_number }}</span>
+                      <span class="team home">{{ m.home_team }}</span>
+                      <span class="score">{{ m.home_score ?? '-' }} - {{ m.away_score ?? '-' }}</span>
+                      <span class="team away">{{ m.away_team }}</span>
+                      <span class="sign" [class.sign-1]="m.sign === '1'" [class.sign-x]="m.sign === 'X'" [class.sign-2]="m.sign === '2'">{{ m.sign || '-' }}</span>
+                      @if (getPrediction(m.match_number); as pred) {
+                        <span class="my-pred" [class.pred-hit]="pred.prediction_1x2 === m.sign" [class.pred-miss]="m.sign && pred.prediction_1x2 !== m.sign">{{ pred.prediction_1x2 }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="live-empty">
+                  AÃºn no hay resultados en vivo para esta jornada.
+                </div>
+              }
             </section>
           }
 
@@ -358,7 +364,7 @@ import { StandingsComponent } from '../../shared/components/standings/standings.
                     </div>
                     <div class="row-right">
                       <span class="row-pts">{{ r.totalPoints }}</span>
-                      <span class="row-sub">{{ r.correct1x2 }}Â·1X2 {{ r.correctPleno }}Â·P</span>
+                      <span class="row-sub">{{ r.correct1x2 }}·1X2 {{ r.correctPleno }}·P</span>
                     </div>
                   </div>
                 }
@@ -732,6 +738,15 @@ import { StandingsComponent } from '../../shared/components/standings/standings.
       50% { opacity: 0.5; transform: scale(1.3); }
     }
     .matches-list { display: flex; flex-direction: column; gap: 2px; }
+    .live-empty {
+      padding: 1rem 0.5rem;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      text-align: center;
+      border: 1px dashed #e2e8f0;
+      border-radius: 8px;
+      background: #fafcff;
+    }
     .match-row {
       display: flex;
       align-items: center;
@@ -1184,6 +1199,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   countdownText = signal('');
   deadlinePassed = signal(false);
   liveMatches = signal<LiveMatch[]>([]);
+  visibleLiveMatches = computed(() => this.liveMatches().filter((m) =>
+    m.home_score !== null ||
+    m.away_score !== null ||
+    m.status === 'IN_PLAY' ||
+    m.status === 'PAUSED' ||
+    m.status === 'FINISHED'
+  ));
+  hasRenderableLiveMatches = computed(() => this.visibleLiveMatches().length > 0);
   myPredictions = signal<UserPrediction[]>([]);
   groupRanking = signal<GroupMemberLiveScore[]>([]);
   showRanking = signal(false);

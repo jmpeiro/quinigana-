@@ -26,8 +26,8 @@ export class ProposalController {
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
       const data = await ProposalService.getProposals(groupId, page, limit);
       sendSuccess(res, data);
-    } catch {
-      sendError(res, 'INTERNAL_ERROR', 'Failed to fetch proposals', 500);
+    } catch (err: any) {
+      sendError(res, err.code || 'INTERNAL_ERROR', err.message || 'Failed to fetch proposals', err.statusCode || 500);
     }
   }
 

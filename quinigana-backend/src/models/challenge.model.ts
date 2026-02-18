@@ -162,6 +162,24 @@ export class ChallengeModel {
     return rows.length > 0;
   }
 
+  static async existsBetweenUsersForJornada(
+    userAId: number,
+    userBId: number,
+    jornadaId: number
+  ): Promise<boolean> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT id FROM challenges
+       WHERE jornada_id = ?
+         AND (
+           (challenger_id = ? AND challenged_id = ?)
+           OR (challenger_id = ? AND challenged_id = ?)
+         )
+       LIMIT 1`,
+      [jornadaId, userAId, userBId, userBId, userAId]
+    );
+    return rows.length > 0;
+  }
+
   // Challenge Stats
   static async getOrCreateStats(userId: number, opponentId: number): Promise<ChallengeStats> {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -249,6 +267,53 @@ export class ChallengeModel {
     return rows.length > 0 ? (rows[0] as RivalryStats) : null;
   }
 
+  static async getHeadToHeadRecent(
+    userId: number,
+    opponentId: number,
+    limit: number = 10
+  ): Promise<Array<{
+    challenge_id: number;
+    jornada_name: string;
+    winner_id: number | null;
+    challenger_id: number;
+    challenged_id: number;
+    challenger_score: number | null;
+    challenged_score: number | null;
+    completed_at: Date | null;
+  }>> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT c.id as challenge_id,
+              j.name as jornada_name,
+              c.winner_id,
+              c.challenger_id,
+              c.challenged_id,
+              c.challenger_score,
+              c.challenged_score,
+              c.completed_at
+       FROM challenges c
+       JOIN jornadas j ON j.id = c.jornada_id
+       WHERE c.status = 'completed'
+         AND (
+           (c.challenger_id = ? AND c.challenged_id = ?)
+           OR (c.challenger_id = ? AND c.challenged_id = ?)
+         )
+       ORDER BY c.completed_at DESC
+       LIMIT ?`,
+      [userId, opponentId, opponentId, userId, limit]
+    );
+
+    return rows as Array<{
+      challenge_id: number;
+      jornada_name: string;
+      winner_id: number | null;
+      challenger_id: number;
+      challenged_id: number;
+      challenger_score: number | null;
+      challenged_score: number | null;
+      completed_at: Date | null;
+    }>;
+  }
+
   // Reputation points
   static async getUserReputation(userId: number): Promise<number> {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -316,6 +381,30 @@ export class ChallengeModel {
       draws,
       winRate: total > 0 ? Math.round((wins / total) * 100) : 0,
       currentStreak,
+    };
+  }
+
+  static async getUserJornadaPerformance(userId: number, jornadaId: number): Promise<{
+    totalPoints: number;
+    correct1x2: number;
+    correctPleno: number;
+  }> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT
+        COALESCE(SUM(gs.total_points), 0) as totalPoints,
+        COALESCE(SUM(gs.correct_1x2), 0) as correct1x2,
+        COALESCE(SUM(gs.correct_pleno), 0) as correctPleno
+       FROM group_scores gs
+       INNER JOIN group_members gm ON gm.group_id = gs.group_id
+       WHERE gm.user_id = ? AND gs.jornada_id = ?`,
+      [userId, jornadaId]
+    );
+
+    const row = rows[0] as RowDataPacket;
+    return {
+      totalPoints: Number(row.totalPoints || 0),
+      correct1x2: Number(row.correct1x2 || 0),
+      correctPleno: Number(row.correctPleno || 0),
     };
   }
 }

@@ -37,7 +37,7 @@ export class UserModel {
   }): Promise<number> {
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO users (email, password_hash, first_name, last_name, auth_provider, is_admin)
-       VALUES (?, ?, ?, ?, 'local', TRUE)`,
+       VALUES (?, ?, ?, ?, 'local', FALSE)`,
       [data.email, data.password_hash, data.first_name, data.last_name || null]
     );
     return result.insertId;
@@ -52,7 +52,7 @@ export class UserModel {
   }): Promise<number> {
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO users (email, google_id, first_name, last_name, avatar_url, auth_provider, email_verified, is_admin)
-       VALUES (?, ?, ?, ?, ?, 'google', TRUE, TRUE)`,
+       VALUES (?, ?, ?, ?, ?, 'google', TRUE, FALSE)`,
       [data.email, data.google_id, data.first_name, data.last_name || null, data.avatar_url || null]
     );
     return result.insertId;

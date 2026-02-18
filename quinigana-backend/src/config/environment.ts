@@ -2,9 +2,29 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function parseTrustProxy(value: string | undefined, nodeEnv: string): boolean | number | string {
+  if (!value || value.trim() === '') {
+    return nodeEnv === 'production' ? 1 : false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+
+  const asNumber = Number(value);
+  if (!Number.isNaN(asNumber) && Number.isInteger(asNumber) && asNumber >= 0) {
+    return asNumber;
+  }
+
+  return value;
+}
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+
 export const env = {
   port: parseInt(process.env.PORT || '3000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, nodeEnv),
 
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -44,6 +64,13 @@ export const env = {
 
   footballData: {
     apiKey: process.env.FOOTBALL_DATA_API_KEY || '',
+  },
+
+  apiFootball: {
+    apiKey: process.env.API_FOOTBALL_KEY || '',
+    baseHost: process.env.API_FOOTBALL_BASE_HOST || 'v3.football.api-sports.io',
+    useRapidApi: (process.env.API_FOOTBALL_USE_RAPIDAPI || 'false').toLowerCase() === 'true',
+    rapidApiHost: process.env.API_FOOTBALL_RAPIDAPI_HOST || 'v3.football.api-sports.io',
   },
 
   webPush: {

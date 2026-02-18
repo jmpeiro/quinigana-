@@ -71,7 +71,9 @@ export class StatsController {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
-      const data = await StatsService.getGlobalRankings(page, limit);
+      const seasonId = req.query.seasonId ? parseInt(req.query.seasonId as string) : undefined;
+      const groupId = req.query.groupId ? parseInt(req.query.groupId as string) : undefined;
+      const data = await StatsService.getGlobalRankings(page, limit, { seasonId, groupId });
       sendSuccess(res, data);
     } catch (err: any) {
       sendError(res, err.code || 'GLOBAL_RANKING_ERROR', err.message || 'Error fetching global rankings', err.statusCode || 500);
@@ -98,6 +100,17 @@ export class StatsController {
       sendSuccess(res, data);
     } catch (err: any) {
       sendError(res, err.code || 'HEATMAP_ERROR', err.message || 'Error fetching heatmap', err.statusCode || 500);
+    }
+  }
+
+  static async getStreaks(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      const seasonId = req.query.seasonId ? parseInt(req.query.seasonId as string) : undefined;
+      const data = await StatsService.getStreakSummary(userId, seasonId);
+      sendSuccess(res, data);
+    } catch (err: any) {
+      sendError(res, err.code || 'STREAKS_ERROR', err.message || 'Error fetching streaks', err.statusCode || 500);
     }
   }
 }

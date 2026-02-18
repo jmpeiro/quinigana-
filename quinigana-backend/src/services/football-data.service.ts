@@ -76,6 +76,15 @@ export interface MatchResultData {
 
 export class FootballDataService {
   private static readonly BASE_URL = 'api.football-data.org';
+  private static readonly BREAKER_THRESHOLD = 3;
+  private static readonly BREAKER_COOLDOWN_MS = 5 * 60 * 1000;
+
+  private static standingsBreaker = {
+    failures: 0,
+    openUntil: 0,
+  };
+
+  private static readonly fallbackStandingsCache: Map<string, LeagueStanding[]> = new Map();
 
   private static get API_KEY(): string {
     return env.footballData.apiKey;
@@ -168,45 +177,82 @@ export class FootballDataService {
   private static standingsCache: Map<string, { data: LeagueStanding[]; timestamp: number }> = new Map();
 
   static async getStandings(competition: string): Promise<LeagueStanding[]> {
-    if (!this.API_KEY) {
-      throw new Error('FOOTBALL_DATA_API_KEY is not configured');
-    }
-
     // Check cache (1 hour TTL)
     const cached = this.standingsCache.get(competition);
     if (cached && (Date.now() - cached.timestamp) < 60 * 60 * 1000) {
       return cached.data;
     }
 
-    const path = `/v4/competitions/${competition}/standings`;
-    const data = await this.httpGet(path) as unknown as StandingsResponse;
+    const now = Date.now();
+    const breakerOpen = this.standingsBreaker.openUntil > now;
 
-    if (!data.standings || data.standings.length === 0) {
-      throw new Error(`No standings found for ${competition}`);
+    if (!breakerOpen) {
+      try {
+        if (!this.API_KEY) {
+          throw new Error('FOOTBALL_DATA_API_KEY is not configured');
+        }
+
+        const path = `/v4/competitions/${competition}/standings`;
+        const data = await this.httpGet(path) as unknown as StandingsResponse;
+
+        if (!data.standings || data.standings.length === 0) {
+          throw new Error(`No standings found for ${competition}`);
+        }
+
+        const totalStandings = data.standings.find(s => s.type === 'TOTAL');
+        if (!totalStandings) {
+          throw new Error(`No total standings found for ${competition}`);
+        }
+
+        const standings: LeagueStanding[] = totalStandings.table.map(entry => ({
+          position: entry.position,
+          team: entry.team.shortName || entry.team.name,
+          played: entry.playedGames,
+          won: entry.won,
+          drawn: entry.draw,
+          lost: entry.lost,
+          goalsFor: entry.goalsFor,
+          goalsAgainst: entry.goalsAgainst,
+          points: entry.points,
+        }));
+
+        this.standingsBreaker.failures = 0;
+        this.standingsBreaker.openUntil = 0;
+        this.standingsCache.set(competition, { data: standings, timestamp: now });
+        this.fallbackStandingsCache.set(competition, standings);
+
+        return standings;
+      } catch {
+        this.standingsBreaker.failures += 1;
+        if (this.standingsBreaker.failures >= this.BREAKER_THRESHOLD) {
+          this.standingsBreaker.openUntil = now + this.BREAKER_COOLDOWN_MS;
+        }
+      }
     }
 
-    // Get the TOTAL standings (not home/away)
-    const totalStandings = data.standings.find(s => s.type === 'TOTAL');
-    if (!totalStandings) {
-      throw new Error(`No total standings found for ${competition}`);
+    const fallback = await this.getFallbackStandings(competition);
+    if (fallback.length > 0) {
+      this.standingsCache.set(competition, { data: fallback, timestamp: now });
+      this.fallbackStandingsCache.set(competition, fallback);
+      return fallback;
     }
 
-    const standings: LeagueStanding[] = totalStandings.table.map(entry => ({
-      position: entry.position,
-      team: entry.team.shortName || entry.team.name,
-      played: entry.playedGames,
-      won: entry.won,
-      drawn: entry.draw,
-      lost: entry.lost,
-      goalsFor: entry.goalsFor,
-      goalsAgainst: entry.goalsAgainst,
-      points: entry.points,
-    }));
+    const lastKnown = this.fallbackStandingsCache.get(competition);
+    if (lastKnown) return lastKnown;
 
-    // Cache the result
-    this.standingsCache.set(competition, { data: standings, timestamp: Date.now() });
+    throw new Error(`Standings unavailable for ${competition}`);
+  }
 
-    return standings;
+  private static async getFallbackStandings(competition: string): Promise<LeagueStanding[]> {
+    const division = competition === 'PD' ? 'primera' : competition === 'SD' ? 'segunda' : null;
+    if (!division) return [];
+
+    try {
+      const { QuinielaScraper } = await import('./quiniela-scraper.service');
+      return await QuinielaScraper.getStandings(division);
+    } catch {
+      return [];
+    }
   }
 
   private static httpGet(path: string): Promise<FootballDataResponse> {

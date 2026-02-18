@@ -12,7 +12,11 @@ export class JornadaController {
     try {
       const jornada = await JornadaService.createJornada(req.body);
       sendSuccess(res, jornada, 'Jornada created', 201);
-    } catch (error: unknown) {
+    } catch (error: any) {
+      if (error?.statusCode) {
+        sendError(res, error.code || 'CREATE_JORNADA_ERROR', error.message, error.statusCode);
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Failed to create jornada';
       sendError(res, 'CREATE_JORNADA_ERROR', message, 400);
     }

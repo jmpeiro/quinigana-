@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { ComparisonModel } from '../models/comparison.model';
 import { GroupModel } from '../models/group.model';
-import { QuinielaScraper } from '../services/quiniela-scraper.service';
+import { JornadaService } from '../services/jornada.service';
 import { ApiResponse } from '../types';
+import { parseId } from '../utils/parse-id.util';
 
 export class ComparisonController {
   /**
@@ -11,8 +12,8 @@ export class ComparisonController {
    */
   static async getGroupJornadaRanking(req: Request, res: Response): Promise<void> {
     try {
-      const groupId = Number(req.params.groupId);
-      const jornadaId = Number(req.params.jornadaId);
+      const groupId = parseId(req.params.groupId || req.params.id);
+      const jornadaId = parseId(req.params.jornadaId);
       const userId = req.authUser!.userId;
 
       // Verify user is member of group
@@ -26,15 +27,17 @@ export class ComparisonController {
         return;
       }
 
-      // Get live results
-      let liveResults: Map<string, { home_score: number; away_score: number; status: string }> | null = null;
+      // Build jornada-scoped live results map (match_number -> score/status/sign)
+      let liveScoresByMatch: Map<number, { home_score: number | null; away_score: number | null; status: string; sign: string | null }> | null = null;
       try {
-        liveResults = await QuinielaScraper.getLiveResults();
+        const liveRows = await JornadaService.getLiveScores(jornadaId);
+        liveScoresByMatch = new Map(liveRows.map((r) => [r.match_number, r]));
       } catch {
-        // Scraping failed, continue with DB results only
+        // If live service fails, model will use DB match_results fallback.
+        liveScoresByMatch = null;
       }
 
-      const ranking = await ComparisonModel.getGroupLiveRanking(groupId, jornadaId, liveResults);
+      const ranking = await ComparisonModel.getGroupLiveRanking(groupId, jornadaId, liveScoresByMatch);
 
       const response: ApiResponse = {
         success: true,
@@ -56,8 +59,8 @@ export class ComparisonController {
    */
   static async getGroupJornadaComparison(req: Request, res: Response): Promise<void> {
     try {
-      const groupId = Number(req.params.groupId);
-      const jornadaId = Number(req.params.jornadaId);
+      const groupId = parseId(req.params.groupId || req.params.id);
+      const jornadaId = parseId(req.params.jornadaId);
       const userId = req.authUser!.userId;
 
       // Verify user is member of group
@@ -71,15 +74,16 @@ export class ComparisonController {
         return;
       }
 
-      // Get live results
-      let liveResults: Map<string, { home_score: number; away_score: number; status: string }> | null = null;
+      // Build jornada-scoped live results map (match_number -> score/status/sign)
+      let liveScoresByMatch: Map<number, { home_score: number | null; away_score: number | null; status: string; sign: string | null }> | null = null;
       try {
-        liveResults = await QuinielaScraper.getLiveResults();
+        const liveRows = await JornadaService.getLiveScores(jornadaId);
+        liveScoresByMatch = new Map(liveRows.map((r) => [r.match_number, r]));
       } catch {
-        // Scraping failed, continue with DB results only
+        liveScoresByMatch = null;
       }
 
-      const comparison = await ComparisonModel.getGroupComparison(groupId, jornadaId, liveResults);
+      const comparison = await ComparisonModel.getGroupComparison(groupId, jornadaId, liveScoresByMatch);
 
       const response: ApiResponse = {
         success: true,

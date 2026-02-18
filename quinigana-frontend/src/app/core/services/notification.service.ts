@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/user.model';
 import { NotificationsResponse } from '../models/notification.model';
 import { PushNotificationService } from './push-notification.service';

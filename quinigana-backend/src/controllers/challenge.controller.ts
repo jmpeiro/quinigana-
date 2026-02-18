@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ChallengeModel } from '../models/challenge.model';
 import { JornadaModel } from '../models/jornada.model';
 import { NotificationService } from '../services/notification.service';
+import { ChallengeAutoService } from '../services/challenge-auto.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { CreateChallengeDto } from '../types';
 
@@ -258,9 +259,14 @@ export class ChallengeController {
     try {
       const userId = req.authUser!.userId;
       const opponentId = parseInt(req.params.opponentId as string);
+      const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 10));
 
-      const stats = await ChallengeModel.getHeadToHead(userId, opponentId);
-      sendSuccess(res, stats);
+      const [stats, recent] = await Promise.all([
+        ChallengeModel.getHeadToHead(userId, opponentId),
+        ChallengeModel.getHeadToHeadRecent(userId, opponentId, limit),
+      ]);
+
+      sendSuccess(res, { stats, recent });
     } catch (err) {
       console.error('Get head to head error:', err);
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener estadisticas', 500);
@@ -277,6 +283,16 @@ export class ChallengeController {
     } catch (err) {
       console.error('Get challenge stats error:', err);
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener estadisticas', 500);
+    }
+  }
+
+  static async autoGenerate(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await ChallengeAutoService.autoGenerateForOpenJornadas();
+      sendSuccess(res, result, 'Retos semanales generados');
+    } catch (err) {
+      console.error('Auto-generate challenges error:', err);
+      sendError(res, 'INTERNAL_ERROR', 'Error al autogenerar retos', 500);
     }
   }
 }

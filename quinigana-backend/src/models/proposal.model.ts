@@ -29,18 +29,42 @@ export class ProposalModel {
 
   static async findByGroup(groupId: number, page: number = 1, limit: number = 20): Promise<{ items: (QuinielaProposal & { proposer_name: string; jornada_name: string })[]; total: number }> {
     const offset = (page - 1) * limit;
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT qp.*,
-        CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as proposer_name,
-        j.name as jornada_name
-       FROM quiniela_proposals qp
-       INNER JOIN users u ON qp.proposed_by = u.id
-       INNER JOIN jornadas j ON qp.jornada_id = j.id
-       WHERE qp.group_id = ?
-       ORDER BY qp.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [groupId, limit, offset]
-    );
+    let rows: RowDataPacket[];
+    try {
+      const [queryRows] = await pool.execute<RowDataPacket[]>(
+        `SELECT qp.*,
+          CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as proposer_name,
+          j.name as jornada_name
+         FROM quiniela_proposals qp
+         INNER JOIN users u ON qp.proposed_by = u.id
+         INNER JOIN jornadas j ON qp.jornada_id = j.id
+         WHERE qp.group_id = ?
+         ORDER BY qp.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [groupId, limit, offset]
+      );
+      rows = queryRows;
+    } catch (error: any) {
+      // Backward-compatible fallback for databases without qp.created_at.
+      if (error?.code !== 'ER_BAD_FIELD_ERROR') {
+        throw error;
+      }
+
+      const [queryRows] = await pool.execute<RowDataPacket[]>(
+        `SELECT qp.*,
+          CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as proposer_name,
+          j.name as jornada_name
+         FROM quiniela_proposals qp
+         INNER JOIN users u ON qp.proposed_by = u.id
+         INNER JOIN jornadas j ON qp.jornada_id = j.id
+         WHERE qp.group_id = ?
+         ORDER BY qp.id DESC
+         LIMIT ? OFFSET ?`,
+        [groupId, limit, offset]
+      );
+      rows = queryRows;
+    }
+
     const [countRows] = await pool.execute<RowDataPacket[]>(
       'SELECT COUNT(*) as total FROM quiniela_proposals WHERE group_id = ?',
       [groupId]

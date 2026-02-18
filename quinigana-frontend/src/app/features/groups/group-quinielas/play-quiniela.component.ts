@@ -100,10 +100,11 @@ interface MatchWithPrediction extends GroupQuinielaMatch {
                   <button mat-raised-button color="primary" (click)="savePredictions()" [disabled]="saving() || !hasChanges()">
                     @if (saving()) {
                       <mat-spinner diameter="20"></mat-spinner>
-                    } @else {
-                      <mat-icon>save</mat-icon>
-                      Guardar Predicciones
                     }
+                    @if (!saving()) {
+                      <mat-icon>save</mat-icon>
+                    }
+                    <span>Guardar Predicciones</span>
                   </button>
                 </div>
               }

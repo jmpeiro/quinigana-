@@ -144,6 +144,45 @@ export class StatsModel {
     return { currentStreak, bestStreak };
   }
 
+  static async getStreakSeries(userId: number, seasonId?: number, limit: number = 20): Promise<Array<{
+    jornadaId: number;
+    jornadaName: string;
+    accuracy: number;
+    hit: boolean;
+    streakAtPoint: number;
+  }>> {
+    const seasonFilter = seasonId ? 'AND j.season_id = ?' : '';
+    const params = seasonId ? [userId, seasonId, limit] : [userId, limit];
+
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT gs.jornada_id as jornadaId,
+              j.name as jornadaName,
+              gs.correct_1x2 as correct1x2,
+              (SELECT COUNT(*) FROM matches WHERE jornada_id = gs.jornada_id) as matchCount
+       FROM group_scores gs
+       INNER JOIN jornadas j ON gs.jornada_id = j.id
+       INNER JOIN group_members gm ON gs.group_id = gm.group_id
+       WHERE gm.user_id = ? AND j.status = 'finished' ${seasonFilter}
+       ORDER BY j.jornada_number ASC
+       LIMIT ?`,
+      params
+    );
+
+    let streak = 0;
+    return rows.map((row) => {
+      const accuracy = Number(row.matchCount) > 0 ? Math.round((Number(row.correct1x2) / Number(row.matchCount)) * 100) : 0;
+      const hit = accuracy >= 50;
+      streak = hit ? streak + 1 : 0;
+      return {
+        jornadaId: row.jornadaId,
+        jornadaName: row.jornadaName,
+        accuracy,
+        hit,
+        streakAtPoint: streak,
+      };
+    });
+  }
+
   static async getGroupHistory(groupId: number, page: number, limit: number): Promise<{
     items: Array<{
       jornadaId: number;
@@ -365,8 +404,25 @@ export class StatsModel {
     };
   }
 
-  static async getGlobalRankings(page: number = 1, limit: number = 20): Promise<{ items: any[]; total: number }> {
+  static async getGlobalRankings(
+    page: number = 1,
+    limit: number = 20,
+    filters?: { seasonId?: number; groupId?: number }
+  ): Promise<{ items: any[]; total: number }> {
     const offset = (page - 1) * limit;
+    const whereConditions: string[] = [];
+    const params: (number | string)[] = [];
+
+    if (filters?.seasonId) {
+      whereConditions.push('j.season_id = ?');
+      params.push(filters.seasonId);
+    }
+    if (filters?.groupId) {
+      whereConditions.push('g.id = ?');
+      params.push(filters.groupId);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT g.id as group_id, g.name as group_name,
@@ -377,12 +433,14 @@ export class StatsModel {
         COALESCE(SUM(gs.correct_pleno), 0) as correct_pleno
        FROM \`groups\` g
        LEFT JOIN group_scores gs ON gs.group_id = g.id
+       LEFT JOIN jornadas j ON gs.jornada_id = j.id
        LEFT JOIN group_members gm ON gm.group_id = g.id
+       ${whereClause}
        GROUP BY g.id, g.name
        HAVING total_jornadas > 0
        ORDER BY total_points DESC, correct_pleno DESC, correct_1x2 DESC
        LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [...params, limit, offset]
     );
 
     const [countRows] = await pool.execute<RowDataPacket[]>(
@@ -390,8 +448,12 @@ export class StatsModel {
         SELECT g.id
         FROM \`groups\` g
         INNER JOIN group_scores gs ON gs.group_id = g.id
+        LEFT JOIN jornadas j ON gs.jornada_id = j.id
+        ${whereClause}
         GROUP BY g.id
       ) sub`
+      ,
+      params
     );
 
     return { items: rows as any[], total: Number((countRows[0] as any).total) };
@@ -457,14 +519,22 @@ export class StatsModel {
                 pp.away_score_prediction as awayScorePrediction,
                 mr.result_1x2 as actualResult1x2,
                 mr.home_score as homeScoreActual, mr.away_score as awayScoreActual,
-                COALESCE(qr.is_correct_1x2, FALSE) as isCorrect1x2,
-                COALESCE(qr.is_correct_pleno, FALSE) as isCorrectPleno
+                CASE
+                  WHEN mr.result_1x2 IS NULL THEN FALSE
+                  WHEN pp.prediction_1x2 = mr.result_1x2 THEN TRUE
+                  ELSE FALSE
+                END as isCorrect1x2,
+                CASE
+                  WHEN mr.home_score IS NULL OR mr.away_score IS NULL THEN FALSE
+                  WHEN pp.home_score_prediction IS NULL OR pp.away_score_prediction IS NULL THEN FALSE
+                  WHEN pp.home_score_prediction = mr.home_score AND pp.away_score_prediction = mr.away_score THEN TRUE
+                  ELSE FALSE
+                END as isCorrectPleno
          FROM matches m
          LEFT JOIN quiniela_proposals qp ON qp.jornada_id = m.jornada_id AND qp.status = 'approved'
          LEFT JOIN group_members gm ON gm.group_id = qp.group_id AND gm.user_id = ?
          LEFT JOIN proposal_predictions pp ON pp.proposal_id = qp.id AND pp.match_id = m.id
          LEFT JOIN match_results mr ON mr.match_id = m.id
-         LEFT JOIN quiniela_results qr ON qr.proposal_id = qp.id AND qr.match_id = m.id
          WHERE m.jornada_id = ? AND pp.prediction_1x2 IS NOT NULL
          ORDER BY m.match_number ASC`,
         [userId, jornada.id]

@@ -8,20 +8,21 @@ import { User } from '../types';
 
 const COOKIE_MAX_AGE_SHORT = 24 * 60 * 60 * 1000; // 1 day (session)
 const COOKIE_MAX_AGE_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days (remember me)
+const IS_PROD = env.nodeEnv === 'production';
 
 const getRefreshCookieOptions = (rememberMe: boolean) => ({
   httpOnly: true,
-  secure: false, // Set to false for HTTP (change to true when using HTTPS)
-  sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for better compatibility
-  path: '/', // Changed from '/api/auth/refresh' to '/' to be available everywhere
+  secure: IS_PROD,
+  sameSite: 'lax' as const,
+  path: '/',
   maxAge: rememberMe ? COOKIE_MAX_AGE_LONG : COOKIE_MAX_AGE_SHORT,
 });
 
 const LOGOUT_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: false, // Set to false for HTTP (change to true when using HTTPS)
-  sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for better compatibility
-  path: '/', // Changed from '/api/auth/refresh' to '/' to be available everywhere
+  secure: IS_PROD,
+  sameSite: 'lax' as const,
+  path: '/',
 };
 
 export class AuthController {

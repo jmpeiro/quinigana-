@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { SwPush } from '@angular/service-worker';
 import { NotificationService } from './notification.service';
 
 describe('NotificationService', () => {
@@ -11,14 +12,24 @@ describe('NotificationService', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [NotificationService],
+      providers: [
+        NotificationService,
+        {
+          provide: SwPush,
+          useValue: {
+            isEnabled: false,
+            subscription: { subscribe: jest.fn() },
+            notificationClicks: { subscribe: jest.fn() },
+          },
+        },
+      ],
     });
     service = TestBed.inject(NotificationService);
     httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
-    service.stopPolling();
+    service?.stopPolling();
     httpMock.verify();
     jest.useRealTimers();
   });

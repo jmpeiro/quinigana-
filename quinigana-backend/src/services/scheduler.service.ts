@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import { JornadaModel } from '../models/jornada.model';
 import { ScoreService } from './score.service';
+import { ChallengeAutoService } from './challenge-auto.service';
+import { ChallengeSettlementService } from './challenge-settlement.service';
 
 export class SchedulerService {
   private static initialized = false;
@@ -26,6 +28,7 @@ export class SchedulerService {
 
   private static async processJornadas(): Promise<void> {
     try {
+      await ChallengeAutoService.autoGenerateForOpenJornadas();
       await this.closeExpiredJornadas();
       await this.finishCompletedJornadas();
     } catch (err) {
@@ -53,6 +56,7 @@ export class SchedulerService {
       try {
         // Calculate scores before marking as finished
         await ScoreService.calculateScoresForJornada(jornada.id);
+        await ChallengeSettlementService.settleForJornada(jornada.id);
         await JornadaModel.updateStatus(jornada.id, 'finished');
         console.log(`[Scheduler] Jornada ${jornada.id} (${jornada.name}) finished - all results in, scores calculated`);
       } catch (err) {

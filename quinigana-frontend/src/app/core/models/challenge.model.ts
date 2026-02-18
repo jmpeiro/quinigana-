@@ -60,3 +60,19 @@ export interface PaginatedChallenges {
   limit: number;
   totalPages: number;
 }
+
+export interface HeadToHeadRecentEntry {
+  challenge_id: number;
+  jornada_name: string;
+  winner_id: number | null;
+  challenger_id: number;
+  challenged_id: number;
+  challenger_score: number | null;
+  challenged_score: number | null;
+  completed_at: string | null;
+}
+
+export interface HeadToHeadResponse {
+  stats: RivalryStats | null;
+  recent: HeadToHeadRecentEntry[];
+}

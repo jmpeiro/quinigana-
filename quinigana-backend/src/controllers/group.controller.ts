@@ -113,8 +113,19 @@ export class GroupController {
       const groupId = parseId(req.params.id);
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
-      const data = await ActivityModel.getGroupActivity(groupId, page, limit);
-      sendSuccess(res, data);
+      const type = req.query.type as string | undefined;
+      const from = req.query.from as string | undefined;
+      const to = req.query.to as string | undefined;
+      const data = await ActivityModel.getGroupActivity(groupId, page, limit, type as any, from, to);
+      sendSuccess(res, {
+        items: data.items,
+        pagination: {
+          total: data.total,
+          page,
+          limit,
+          totalPages: Math.ceil(data.total / limit),
+        },
+      });
     } catch {
       sendError(res, 'INTERNAL_ERROR', 'Failed to fetch activity', 500);
     }

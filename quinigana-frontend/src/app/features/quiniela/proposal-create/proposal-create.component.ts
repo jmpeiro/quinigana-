@@ -147,10 +147,11 @@ interface MatchPrediction {
             <button mat-raised-button color="primary" (click)="submitProposal()" [disabled]="submitting()">
               @if (submitting()) {
                 <mat-spinner diameter="20" class="button-spinner"></mat-spinner>
-              } @else {
-                <mat-icon>send</mat-icon>
-                Submit Proposal
               }
+              @if (!submitting()) {
+                <mat-icon>send</mat-icon>
+              }
+              <span>{{ submitting() ? 'Submitting...' : 'Submit Proposal' }}</span>
             </button>
           </mat-card-actions>
         </mat-card>

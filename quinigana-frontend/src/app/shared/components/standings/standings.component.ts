@@ -24,7 +24,7 @@ interface LeagueStanding {
     <div class="standings-card">
       <div class="standings-header">
         <mat-icon>emoji_events</mat-icon>
-        <h3>Clasificacion La Liga</h3>
+        <h3>{{ standingsTitle() }}</h3>
       </div>
 
       @if (loading()) {
@@ -70,7 +70,7 @@ interface LeagueStanding {
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="9" class="empty">No hay datos disponibles</td>
+                  <td colspan="9" class="empty">{{ emptyMessage() }}</td>
                 </tr>
               }
             </tbody>
@@ -271,6 +271,8 @@ export class StandingsComponent implements OnInit {
   private http = inject(HttpClient);
 
   standings = signal<LeagueStanding[]>([]);
+  standingsTitle = signal('Clasificacion La Liga');
+  emptyMessage = signal('No hay datos disponibles');
   loading = signal(false);
   error = signal(false);
 
@@ -281,18 +283,44 @@ export class StandingsComponent implements OnInit {
   loadStandings(): void {
     this.loading.set(true);
     this.error.set(false);
-    this.http.get<{ success: boolean; data: LeagueStanding[] }>(
-      `${environment.apiUrl}/dashboard/standings?division=primera`
-    ).subscribe({
+    this.standingsTitle.set('Clasificacion La Liga');
+    this.emptyMessage.set('No hay datos disponibles');
+
+    this.http.get<{ success: boolean; data: LeagueStanding[]; message?: string }>(`${environment.apiUrl}/dashboard/standings?division=primera`).subscribe({
       next: (res) => {
-        this.standings.set(res.data || []);
+        const primera = res.data || [];
+        if (primera.length > 0) {
+          this.standings.set(primera);
+          this.loading.set(false);
+          return;
+        }
+        if (res.message) {
+          this.emptyMessage.set(res.message);
+        }
+        this.loadFallbackSegunda();
+      },
+      error: () => this.loadFallbackSegunda(),
+    });
+  }
+
+  private loadFallbackSegunda(): void {
+    this.http.get<{ success: boolean; data: LeagueStanding[]; message?: string }>(`${environment.apiUrl}/dashboard/standings?division=segunda`).subscribe({
+      next: (res) => {
+        const segunda = res.data || [];
+        this.standings.set(segunda);
+        if (segunda.length > 0) {
+          this.standingsTitle.set('Clasificacion Segunda');
+        } else if (res.message) {
+          this.emptyMessage.set(res.message);
+        }
         this.loading.set(false);
       },
       error: () => {
         this.standings.set([]);
         this.loading.set(false);
         this.error.set(true);
-      }
+      },
     });
   }
 }
+

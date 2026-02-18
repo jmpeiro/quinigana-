@@ -42,3 +42,41 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+export interface OpsRouteMetric {
+  route: string;
+  method: string;
+  requests: number;
+  avgMs: number;
+  p95Ms: number;
+  maxMs: number;
+  status2xx: number;
+  status4xx: number;
+  status5xx: number;
+  lastSeenAt: string;
+}
+
+export interface OpsErrorEvent {
+  timestamp: string;
+  requestId: string | null;
+  route: string;
+  method: string;
+  status: number;
+  durationMs: number;
+}
+
+export interface OpsSnapshot {
+  service: {
+    startedAt: string;
+    uptimeSeconds: number;
+  };
+  totals: {
+    requests: number;
+    status2xx: number;
+    status4xx: number;
+    status5xx: number;
+  };
+  topSlowRoutes: OpsRouteMetric[];
+  topErrorRoutes: OpsRouteMetric[];
+  recentErrors: OpsErrorEvent[];
+}

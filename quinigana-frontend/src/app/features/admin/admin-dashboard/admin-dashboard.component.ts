@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AdminService } from '../../../core/services/admin.service';
-import { GlobalStats } from '../../../core/models/admin.model';
+import { GlobalStats, OpsSnapshot } from '../../../core/models/admin.model';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -74,6 +74,50 @@ import { GlobalStats } from '../../../core/models/admin.model';
             Gestionar Temporadas
           </button>
         </div>
+
+        @if (ops()) {
+          <div class="ops-section">
+            <h2 class="ops-title">Salud Operativa</h2>
+            <div class="ops-kpis">
+              <div class="ops-kpi">
+                <span class="label">Requests</span>
+                <span class="value">{{ ops()!.totals.requests }}</span>
+              </div>
+              <div class="ops-kpi">
+                <span class="label">5xx</span>
+                <span class="value danger">{{ ops()!.totals.status5xx }}</span>
+              </div>
+              <div class="ops-kpi">
+                <span class="label">Uptime</span>
+                <span class="value">{{ formatUptime(ops()!.service.uptimeSeconds) }}</span>
+              </div>
+            </div>
+
+            <h3 class="ops-subtitle">Top Latencia (P95)</h3>
+            <div class="ops-list">
+              @for (route of ops()!.topSlowRoutes; track route.method + route.route) {
+                <div class="ops-row">
+                  <span class="route">{{ route.method }} {{ route.route }}</span>
+                  <span class="metric">{{ route.p95Ms }}ms</span>
+                </div>
+              } @empty {
+                <div class="ops-empty">Sin datos</div>
+              }
+            </div>
+
+            <h3 class="ops-subtitle">Errores Recientes</h3>
+            <div class="ops-list">
+              @for (err of ops()!.recentErrors; track err.timestamp + err.route) {
+                <div class="ops-row error">
+                  <span class="route">{{ err.method }} {{ err.route }} ({{ err.status }})</span>
+                  <span class="metric">{{ err.durationMs }}ms</span>
+                </div>
+              } @empty {
+                <div class="ops-empty">Sin errores recientes</div>
+              }
+            </div>
+          </div>
+        }
       }
     </div>
   `,
@@ -183,6 +227,27 @@ import { GlobalStats } from '../../../core/models/admin.model';
         }
       }
     }
+
+    .ops-section {
+      margin-top: 2rem;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .ops-title { margin: 0 0 0.8rem; color: #1e293b; font-size: 1.1rem; }
+    .ops-subtitle { margin: 1rem 0 0.5rem; color: #334155; font-size: 0.9rem; }
+    .ops-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+    .ops-kpi { border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem; display: flex; flex-direction: column; }
+    .ops-kpi .label { color: #64748b; font-size: 0.72rem; }
+    .ops-kpi .value { color: #0f172a; font-size: 1rem; font-weight: 700; }
+    .ops-kpi .value.danger { color: #dc2626; }
+    .ops-list { display: flex; flex-direction: column; gap: 0.35rem; }
+    .ops-row { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.78rem; border: 1px dashed #e2e8f0; border-radius: 8px; padding: 0.45rem 0.6rem; }
+    .ops-row.error { border-color: #fecaca; background: #fff7f7; }
+    .ops-row .route { color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ops-row .metric { color: #0f172a; font-weight: 600; }
+    .ops-empty { color: #94a3b8; font-size: 0.78rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -191,6 +256,7 @@ export class AdminDashboardComponent implements OnInit {
   private router = inject(Router);
 
   stats = signal<GlobalStats | null>(null);
+  ops = signal<OpsSnapshot | null>(null);
   loading = signal(true);
 
   ngOnInit(): void {
@@ -203,9 +269,23 @@ export class AdminDashboardComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+
+    this.adminService.getOpsMetrics(8).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.ops.set(response.data);
+        }
+      },
+    });
   }
 
   navigate(path: string): void {
     this.router.navigate([path]);
+  }
+
+  formatUptime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${m}m`;
   }
 }

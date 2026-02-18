@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/user.model';
-import { PersonalStats, GroupHistoryResponse, JornadaDetailResult, GroupRankingEntry, PredictionHistoryResponse, GlobalRankingResponse, HeatmapJornada } from '../models/stats.model';
+import { PersonalStats, GroupHistoryResponse, JornadaDetailResult, GroupRankingEntry, PredictionHistoryResponse, GlobalRankingResponse, HeatmapJornada, StreakSummary } from '../models/stats.model';
 
 @Injectable({ providedIn: 'root' })
 export class StatsService {
@@ -33,9 +33,17 @@ export class StatsService {
     );
   }
 
-  getGlobalRankings(page: number = 1, limit: number = 20): Observable<ApiResponse<GlobalRankingResponse>> {
+  getGlobalRankings(
+    page: number = 1,
+    limit: number = 20,
+    filters?: { seasonId?: number; groupId?: number }
+  ): Observable<ApiResponse<GlobalRankingResponse>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (filters?.seasonId) params.set('seasonId', String(filters.seasonId));
+    if (filters?.groupId) params.set('groupId', String(filters.groupId));
+
     return this.http.get<ApiResponse<GlobalRankingResponse>>(
-      `${this.apiUrl}/stats/global-rankings?page=${page}&limit=${limit}`
+      `${this.apiUrl}/stats/global-rankings?${params.toString()}`
     );
   }
 
@@ -47,5 +55,10 @@ export class StatsService {
     return this.http.get<ApiResponse<HeatmapJornada[]>>(
       `${this.apiUrl}/stats/me/heatmap?limit=${limit}`
     );
+  }
+
+  getStreaks(seasonId?: number): Observable<ApiResponse<StreakSummary>> {
+    const params = seasonId ? `?seasonId=${seasonId}` : '';
+    return this.http.get<ApiResponse<StreakSummary>>(`${this.apiUrl}/stats/me/streaks${params}`);
   }
 }

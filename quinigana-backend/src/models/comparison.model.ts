@@ -40,7 +40,7 @@ export class ComparisonModel {
   static async getGroupLiveRanking(
     groupId: number,
     jornadaId: number,
-    liveResults: Map<string, { home_score: number; away_score: number; status: string }> | null
+    liveScoresByMatch: Map<number, { home_score: number | null; away_score: number | null; status: string; sign: string | null }> | null
   ): Promise<GroupMemberLiveScore[]> {
     // Get the approved proposal for this group/jornada
     const [proposalRows] = await pool.execute<RowDataPacket[]>(
@@ -93,23 +93,12 @@ export class ComparisonModel {
         let actualResult: string | null = pred.result_1x2;
 
         // Try to get live result
-        if (liveResults) {
-          const dbName = pred.home_team.toLowerCase().replace(/\./g, '').trim();
-          let live = liveResults.get(dbName);
-          if (!live) {
-            for (const [key, val] of liveResults) {
-              if (key.startsWith(dbName) || dbName.startsWith(key.replace(/\./g, ''))) {
-                live = val;
-                break;
-              }
-            }
-          }
-          if (live && (live.status === 'IN_PLAY' || live.status === 'FINISHED')) {
+        if (liveScoresByMatch) {
+          const live = liveScoresByMatch.get(pred.match_number);
+          if (live && live.home_score !== null && live.away_score !== null && (live.status === 'IN_PLAY' || live.status === 'FINISHED')) {
             actualHomeScore = live.home_score;
             actualAwayScore = live.away_score;
-            if (actualHomeScore > actualAwayScore) actualResult = '1';
-            else if (actualHomeScore === actualAwayScore) actualResult = 'X';
-            else actualResult = '2';
+            actualResult = live.sign;
           }
         }
 
@@ -156,7 +145,7 @@ export class ComparisonModel {
   static async getGroupComparison(
     groupId: number,
     jornadaId: number,
-    liveResults: Map<string, { home_score: number; away_score: number; status: string }> | null
+    liveScoresByMatch: Map<number, { home_score: number | null; away_score: number | null; status: string; sign: string | null }> | null
   ): Promise<{ members: { user_id: number; user_name: string; avatar_url: string | null }[]; matches: MatchComparison[] }> {
     // Get the approved proposal
     const [proposalRows] = await pool.execute<RowDataPacket[]>(
@@ -206,24 +195,13 @@ export class ComparisonModel {
       let status = 'SCHEDULED';
 
       // Try live data
-      if (liveResults) {
-        const dbName = match.home_team.toLowerCase().replace(/\./g, '').trim();
-        let live = liveResults.get(dbName);
-        if (!live) {
-          for (const [key, val] of liveResults) {
-            if (key.startsWith(dbName) || dbName.startsWith(key.replace(/\./g, ''))) {
-              live = val;
-              break;
-            }
-          }
-        }
+      if (liveScoresByMatch) {
+        const live = liveScoresByMatch.get(match.match_number);
         if (live) {
           homeScore = live.home_score;
           awayScore = live.away_score;
           status = live.status;
-          if (homeScore > awayScore) result1x2 = '1';
-          else if (homeScore === awayScore) result1x2 = 'X';
-          else result1x2 = '2';
+          result1x2 = live.sign;
         }
       } else if (homeScore !== null) {
         status = 'FINISHED';

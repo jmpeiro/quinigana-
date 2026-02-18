@@ -2,6 +2,7 @@ import https from 'https';
 import http from 'http';
 import { MatchData } from './football-data.service';
 import { env } from '../config/environment';
+import { normalizeTeamName } from '../utils/team-name.util';
 
 export interface QuinielaLiveMatch {
   match_number: number;
@@ -276,12 +277,15 @@ export class QuinielaScraper {
         if (allScores) {
           const lastScore = allScores[allScores.length - 1];
           const parts = lastScore.split('-');
-          const key = team1.toLowerCase().trim();
-          results.set(key, {
+          const normalizedKey = normalizeTeamName(team1);
+          const resultValue = {
             home_score: parseInt(parts[0], 10),
             away_score: parseInt(parts[1], 10),
             status,
-          });
+          };
+          // Store by normalized key and raw lower key to maximize compatibility with existing lookups
+          results.set(normalizedKey, resultValue);
+          results.set(team1.toLowerCase().trim(), resultValue);
         }
       }
     }

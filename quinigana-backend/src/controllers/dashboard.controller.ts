@@ -1,9 +1,16 @@
 import { Request, Response } from 'express';
 import { DashboardService } from '../services/dashboard.service';
 import { FootballDataService } from '../services/football-data.service';
+import { ApiFootballService } from '../services/api-football.service';
+import { env } from '../config/environment';
 import { sendSuccess, sendError } from '../utils/response.util';
 
 export class DashboardController {
+  private static toErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
+  }
+
   static async getDashboard(req: Request, res: Response): Promise<void> {
     console.log('=== DASHBOARD CALLED ===');
     console.log('Request received at:', new Date().toISOString());
@@ -55,16 +62,100 @@ export class DashboardController {
   static async getStandings(req: Request, res: Response): Promise<void> {
     try {
       const division = req.query.division as 'primera' | 'segunda' || 'primera';
-      // Map division to football-data.org competition code
-      // PD = Primera Division (La Liga), SD = Segunda Division
+      const debug = req.query.debug === '1';
+      const diagnostics: string[] = [];
+
+      // Primary provider: API-Football
+      try {
+        const standings = await ApiFootballService.getStandings(division);
+        if (standings.length > 0) {
+          sendSuccess(res, standings, debug ? 'provider=api-football' : undefined);
+          return;
+        }
+        diagnostics.push('api-football:empty');
+      } catch (apiFootballError) {
+        console.warn('[STANDINGS] API-Football failed, falling back:', apiFootballError);
+        diagnostics.push(`api-football:error:${DashboardController.toErrorMessage(apiFootballError)}`);
+      }
+
+      // Fallback provider: football-data/scraper chain
       const competitionCode = division === 'primera' ? 'PD' : 'SD';
-      const standings = await FootballDataService.getStandings(competitionCode);
-      sendSuccess(res, standings);
+      let fallbackStandings: Awaited<ReturnType<typeof FootballDataService.getStandings>> = [];
+      try {
+        fallbackStandings = await FootballDataService.getStandings(competitionCode);
+      } catch (fallbackError) {
+        diagnostics.push(`football-data:error:${DashboardController.toErrorMessage(fallbackError)}`);
+      }
+
+      if (fallbackStandings.length === 0) {
+        const message = debug
+          ? `provider=none; ${diagnostics.join(' | ')}`
+          : 'Proveedor de clasificación sin datos en este momento';
+        sendSuccess(res, fallbackStandings, message);
+        return;
+      }
+
+      sendSuccess(res, fallbackStandings, debug ? 'provider=football-data' : undefined);
     } catch (err) {
       console.error('[STANDINGS] Error loading standings (will return empty):', err);
-      // Return empty array instead of error 500 to not break dashboard
-      sendSuccess(res, []);
+      const hasAnyProviderKey = Boolean(env.apiFootball.apiKey || env.footballData.apiKey);
+      const message = hasAnyProviderKey
+        ? 'Proveedor de clasificación temporalmente no disponible'
+        : 'Falta configurar API_FOOTBALL_KEY en backend';
+      // Return empty array instead of 500 to avoid breaking dashboard UI.
+      sendSuccess(res, [], message);
     }
+  }
+
+  static async getStandingsDebug(req: Request, res: Response): Promise<void> {
+    const division = req.query.division as 'primera' | 'segunda' || 'primera';
+    const competitionCode = division === 'primera' ? 'PD' : 'SD';
+
+    const result: {
+      division: 'primera' | 'segunda';
+      config: {
+        apiFootballKeyConfigured: boolean;
+        footballDataKeyConfigured: boolean;
+      };
+      providers: {
+        apiFootball: { ok: boolean; count: number; error?: string };
+        footballData: { ok: boolean; count: number; error?: string };
+      };
+    } = {
+      division,
+      config: {
+        apiFootballKeyConfigured: Boolean(env.apiFootball.apiKey),
+        footballDataKeyConfigured: Boolean(env.footballData.apiKey),
+      },
+      providers: {
+        apiFootball: { ok: false, count: 0 },
+        footballData: { ok: false, count: 0 },
+      },
+    };
+
+    try {
+      const data = await ApiFootballService.getStandings(division);
+      result.providers.apiFootball = { ok: data.length > 0, count: data.length };
+    } catch (error) {
+      result.providers.apiFootball = {
+        ok: false,
+        count: 0,
+        error: DashboardController.toErrorMessage(error),
+      };
+    }
+
+    try {
+      const data = await FootballDataService.getStandings(competitionCode);
+      result.providers.footballData = { ok: data.length > 0, count: data.length };
+    } catch (error) {
+      result.providers.footballData = {
+        ok: false,
+        count: 0,
+        error: DashboardController.toErrorMessage(error),
+      };
+    }
+
+    sendSuccess(res, result);
   }
 
   static async testDb(req: Request, res: Response): Promise<void> {

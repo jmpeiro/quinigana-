@@ -11,7 +11,6 @@ import {
   LeagueStandingWithUser,
   LeagueHistory,
 } from '../../core/models/league.model';
-import { ErrorCardComponent } from '../../shared/components/error-card/error-card.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
@@ -22,7 +21,6 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     MatButtonModule,
     MatTabsModule,
     MatChipsModule,
-    ErrorCardComponent,
     SkeletonComponent,
   ],
   template: `

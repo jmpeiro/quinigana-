@@ -6,8 +6,20 @@ import { CreateNotificationDto, Notification, NotificationType, PaginatedRespons
 export class NotificationService {
   static async getNotifications(userId: number, page: number, limit: number): Promise<PaginatedResponse<Notification>> {
     const { items, total } = await NotificationModel.findByUser(userId, page, limit);
+    const normalizedItems = items.map((item) => ({
+      ...item,
+      actionType: item.action_type || null,
+      actionTarget: item.action_type
+        ? {
+            groupId: item.action_group_id || undefined,
+            jornadaId: item.action_jornada_id || undefined,
+            proposalId: item.action_proposal_id || undefined,
+            challengeId: item.action_challenge_id || undefined,
+          }
+        : null,
+    }));
     return {
-      items,
+      items: normalizedItems as unknown as Notification[],
       total,
       page,
       limit,
@@ -60,6 +72,7 @@ export class NotificationService {
       title: 'Nueva jornada disponible',
       message: `La jornada "${jornadaName}" ya esta abierta. Crea una propuesta con tu grupo!`,
       link: '/quiniela/jornadas',
+      actionType: 'open_jornada',
     }));
 
     await NotificationModel.createBulk(notifications);
@@ -85,6 +98,8 @@ export class NotificationService {
       title: 'Nueva propuesta para votar',
       message: `${proposerName} ha enviado una propuesta en "${groupName}". Vota ahora!`,
       link: `/quiniela/groups/${groupId}/proposals/${proposalId}`,
+      actionType: 'open_proposal',
+      actionTarget: { groupId, proposalId },
     }));
 
     await NotificationModel.createBulk(notifications);
@@ -104,6 +119,7 @@ export class NotificationService {
       title: 'Resultados publicados',
       message: `Los resultados de "${jornadaName}" han sido publicados. Revisa tus puntuaciones!`,
       link: '/dashboard',
+      actionType: 'open_jornada',
     }));
 
     await NotificationModel.createBulk(notifications);
@@ -140,6 +156,7 @@ export class NotificationService {
       title: 'Invitacion a grupo',
       message: `${inviterName} te ha invitado a unirte a "${groupName}".`,
       link: '/groups/invitations',
+      actionType: 'open_invite',
     };
 
     await NotificationModel.create(notification);
@@ -172,6 +189,7 @@ export class NotificationService {
       title: 'Nuevo reto 1vs1',
       message: `${challengerName} te ha retado en la ${jornadaName}!`,
       link: '/challenges',
+      actionType: 'open_challenge',
     };
 
     await NotificationModel.create(notification);
@@ -202,6 +220,7 @@ export class NotificationService {
       title: 'Reto aceptado',
       message: `${challengedName} ha aceptado tu reto en la ${jornadaName}!`,
       link: '/challenges',
+      actionType: 'open_challenge',
     };
 
     await NotificationModel.create(notification);
@@ -242,6 +261,7 @@ export class NotificationService {
       title,
       message,
       link: '/challenges',
+      actionType: 'open_challenge',
     };
 
     await NotificationModel.create(notification);

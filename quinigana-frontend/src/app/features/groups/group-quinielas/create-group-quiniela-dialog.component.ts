@@ -10,7 +10,6 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatRadioModule } from '@angular/material/radio';
-import { DatePipe } from '@angular/common';
 import { GroupQuinielaService } from '../../../core/services/group-quiniela.service';
 import { JornadaService } from '../../../core/services/jornada.service';
 import { AdminService } from '../../../core/services/admin.service';
@@ -41,7 +40,6 @@ interface MatchRow {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatRadioModule,
-    DatePipe,
   ],
   template: `
     <h2 mat-dialog-title>Nueva Quiniela</h2>
@@ -80,7 +78,7 @@ interface MatchRow {
             <div class="jornada-preview">
               <div class="preview-header">
                 <span class="preview-title">{{ selectedJornadaData.name }}</span>
-                <span class="preview-meta">{{ selectedJornadaData.matches?.length }} partidos</span>
+                <span class="preview-meta">{{ selectedJornadaData.matches.length }} partidos</span>
               </div>
               <div class="preview-matches">
                 @for (match of selectedJornadaData.matches; track match.id; let i = $index) {
@@ -114,10 +112,11 @@ interface MatchRow {
               <button mat-stroked-button class="btn-quiniela" (click)="autoFillQuiniela()" [disabled]="loadingQuiniela()">
                 @if (loadingQuiniela()) {
                   <mat-spinner diameter="16"></mat-spinner>
-                } @else {
-                  <mat-icon>sports_soccer</mat-icon>
-                  La Quiniela
                 }
+                @if (!loadingQuiniela()) {
+                  <mat-icon>sports_soccer</mat-icon>
+                }
+                <span>La Quiniela</span>
               </button>
               <span class="autofill-sep">o</span>
               <mat-form-field appearance="outline" class="league-field">
@@ -138,10 +137,11 @@ interface MatchRow {
               <button mat-stroked-button class="btn-autofill" (click)="autoFillMatches()" [disabled]="loadingAutoFill()">
                 @if (loadingAutoFill()) {
                   <mat-spinner diameter="16"></mat-spinner>
-                } @else {
-                  <mat-icon>download</mat-icon>
-                  Auto-rellenar
                 }
+                @if (!loadingAutoFill()) {
+                  <mat-icon>download</mat-icon>
+                }
+                <span>Auto-rellenar</span>
               </button>
             </div>
           </div>

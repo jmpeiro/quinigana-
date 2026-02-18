@@ -407,6 +407,14 @@ export interface PaginatedResponse<T> {
 // ===== Module 6: Notifications =====
 
 export type NotificationType = 'new_jornada' | 'proposal_submitted' | 'vote_needed' | 'results_published' | 'invitation_received' | 'badge_unlocked' | 'challenge_received' | 'challenge_accepted' | 'challenge_result' | 'league_update';
+export type NotificationActionType = 'open_proposal' | 'open_jornada' | 'open_invite' | 'open_challenge';
+
+export interface NotificationActionTarget {
+  groupId?: number;
+  jornadaId?: number;
+  proposalId?: number;
+  challengeId?: number;
+}
 
 export interface Notification {
   id: number;
@@ -415,6 +423,13 @@ export interface Notification {
   title: string;
   message: string;
   link: string | null;
+  action_type: NotificationActionType | null;
+  action_group_id: number | null;
+  action_jornada_id: number | null;
+  action_proposal_id: number | null;
+  action_challenge_id: number | null;
+  actionType?: NotificationActionType | null;
+  actionTarget?: NotificationActionTarget | null;
   is_read: boolean;
   created_at: Date;
 }
@@ -425,6 +440,8 @@ export interface CreateNotificationDto {
   title: string;
   message: string;
   link?: string;
+  actionType?: NotificationActionType;
+  actionTarget?: NotificationActionTarget;
 }
 
 // ===== Module 4: Dashboard =====

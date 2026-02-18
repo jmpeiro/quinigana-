@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/user.model';
 import { Group, GroupMember, CreateGroupDto } from '../models/group.model';
 
@@ -67,14 +67,44 @@ export class GroupService {
     return this.http.post<ApiResponse<{ groupId: number }>>(`${this.apiUrl}/invite-links/${token}/accept`, {});
   }
 
-  getActivity(groupId: number, page: number = 1, limit: number = 20): Observable<ApiResponse<{ items: ActivityEntry[]; total: number }>> {
-    return this.http.get<ApiResponse<{ items: ActivityEntry[]; total: number }>>(`${this.apiUrl}/groups/${groupId}/activity?page=${page}&limit=${limit}`);
+  getActivity(
+    groupId: number,
+    page: number = 1,
+    limit: number = 20,
+    filters?: { type?: ActivityEntry['type']; from?: string; to?: string }
+  ): Observable<ApiResponse<{ items: ActivityEntry[]; pagination: ActivityPagination }>> {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+
+    if (filters?.type) params.set('type', filters.type);
+    if (filters?.from) params.set('from', filters.from);
+    if (filters?.to) params.set('to', filters.to);
+
+    return this.http.get<ApiResponse<{ items: ActivityEntry[]; pagination: ActivityPagination }>>(
+      `${this.apiUrl}/groups/${groupId}/activity?${params.toString()}`
+    );
   }
 }
 
 export interface ActivityEntry {
-  type: 'proposal_created' | 'vote_cast' | 'results_published' | 'member_joined' | 'proposal_approved';
+  type: 'proposal_created' | 'vote_cast' | 'results_published' | 'member_joined' | 'proposal_approved' | 'badge_unlocked' | 'challenge_won';
   userName: string;
   detail: string;
+  actionType: 'open_proposal' | 'open_jornada' | 'open_invite' | 'open_challenge' | null;
+  actionTarget: {
+    groupId?: number;
+    jornadaId?: number;
+    proposalId?: number;
+    challengeId?: number;
+  } | null;
   createdAt: string;
+}
+
+export interface ActivityPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

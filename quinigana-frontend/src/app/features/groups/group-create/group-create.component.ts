@@ -83,11 +83,11 @@ import { GroupService } from '../../../core/services/group.service';
               >
                 @if (submitting()) {
                   <mat-spinner diameter="20" class="btn-spinner"></mat-spinner>
-                  Creating...
-                } @else {
-                  <mat-icon>add_circle</mat-icon>
-                  Create Group
                 }
+                @if (!submitting()) {
+                  <mat-icon>add_circle</mat-icon>
+                }
+                <span>{{ submitting() ? 'Creating...' : 'Create Group' }}</span>
               </button>
             </div>
           </form>

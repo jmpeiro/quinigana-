@@ -60,8 +60,8 @@ export class StatsService {
     };
   }
 
-  static async getGlobalRankings(page: number, limit: number) {
-    const { items, total } = await StatsModel.getGlobalRankings(page, limit);
+  static async getGlobalRankings(page: number, limit: number, filters?: { seasonId?: number; groupId?: number }) {
+    const { items, total } = await StatsModel.getGlobalRankings(page, limit, filters);
     const totalPages = Math.ceil(total / limit);
     return {
       items: items.map((item: any) => ({
@@ -91,5 +91,18 @@ export class StatsService {
 
   static async getPredictionsHeatmap(userId: number, limit: number = 10) {
     return StatsModel.getPredictionsHeatmap(userId, limit);
+  }
+
+  static async getStreakSummary(userId: number, seasonId?: number) {
+    const [streaks, series] = await Promise.all([
+      StatsModel.getStreaks(userId, seasonId),
+      StatsModel.getStreakSeries(userId, seasonId),
+    ]);
+
+    return {
+      currentStreak: streaks.currentStreak,
+      bestStreak: streaks.bestStreak,
+      series,
+    };
   }
 }

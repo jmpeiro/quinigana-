@@ -131,3 +131,17 @@ export interface HeatmapJornada {
   jornadaName: string;
   matches: HeatmapMatch[];
 }
+
+export interface StreakSeriesPoint {
+  jornadaId: number;
+  jornadaName: string;
+  accuracy: number;
+  hit: boolean;
+  streakAtPoint: number;
+}
+
+export interface StreakSummary {
+  currentStreak: number;
+  bestStreak: number;
+  series: StreakSeriesPoint[];
+}

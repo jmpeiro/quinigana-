@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ChallengeController } from '../controllers/challenge.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/pending', ChallengeController.getPending);
 router.get('/stats', ChallengeController.getMyStats);
 router.get('/rivalries', ChallengeController.getRivalries);
 router.get('/head-to-head/:opponentId', ChallengeController.getHeadToHead);
+router.post('/auto-generate', adminMiddleware, ChallengeController.autoGenerate);
 router.get('/:id', ChallengeController.getById);
 router.post('/:id/accept', ChallengeController.accept);
 router.post('/:id/reject', ChallengeController.reject);
