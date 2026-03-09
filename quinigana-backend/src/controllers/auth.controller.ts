@@ -177,4 +177,49 @@ export class AuthController {
       }
     }
   }
+
+  // =====================================================
+  // EMAIL VERIFICATION (Migration 018)
+  // =====================================================
+
+  /**
+   * POST /auth/verify-email - Verify email with token
+   */
+  static async verifyEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        sendError(res, 'MISSING_TOKEN', 'Verification token is required', 400);
+        return;
+      }
+
+      const result = await AuthService.verifyEmail(token);
+      sendSuccess(res, result, 'Email verified successfully');
+    } catch (error: any) {
+      if (error.statusCode) {
+        sendError(res, error.code, error.message, error.statusCode);
+      } else {
+        console.error('Verify email error:', error);
+        sendError(res, 'INTERNAL_ERROR', 'Failed to verify email', 500);
+      }
+    }
+  }
+
+  /**
+   * POST /auth/verify-email/resend - Resend verification email
+   */
+  static async resendVerificationEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      await AuthService.resendVerificationEmail(userId);
+      sendSuccess(res, null, 'Verification email sent');
+    } catch (error: any) {
+      if (error.statusCode) {
+        sendError(res, error.code, error.message, error.statusCode);
+      } else {
+        console.error('Resend verification email error:', error);
+        sendError(res, 'INTERNAL_ERROR', 'Failed to resend verification email', 500);
+      }
+    }
+  }
 }

@@ -4,9 +4,11 @@ import { TokenModel } from '../models/token.model';
 import { generateAccessToken, generateRefreshToken } from '../config/jwt';
 import { hashToken, generateRandomToken } from '../utils/crypto.util';
 import { AuthTokens, TokenPayload, User, UserPublic } from '../types';
+import { EmailService } from './email.service';
 
 const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_DAYS = 7;
+const EMAIL_VERIFICATION_HOURS = 24;
 
 export class AuthService {
   static async register(data: {
@@ -30,6 +32,11 @@ export class AuthService {
 
     const user = await UserModel.findById(userId);
     if (!user) throw { statusCode: 500, code: 'CREATE_FAILED', message: 'Failed to create user' };
+
+    // Send email verification (non-blocking)
+    this.sendVerificationEmail(user).catch((err) => {
+      console.error('Failed to send verification email:', err);
+    });
 
     const tokens = await this.generateTokens(user);
     return { user: this.sanitizeUser(user), tokens };
@@ -150,6 +157,62 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await UserModel.updatePassword(userId, passwordHash);
     await TokenModel.revokeAllUserTokens(userId);
+  }
+
+  // =====================================================
+  // EMAIL VERIFICATION (Migration 018)
+  // =====================================================
+
+  /**
+   * Send a verification email to a user. Generates a token, stores it in the DB,
+   * and sends the email with a verification link.
+   */
+  static async sendVerificationEmail(user: User): Promise<void> {
+    if (user.email_verified) return;
+
+    const token = generateRandomToken();
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_HOURS * 60 * 60 * 1000);
+
+    await UserModel.setEmailVerificationToken(user.id, tokenHash, expiresAt);
+    await EmailService.sendEmailVerification(user.email, user.first_name, token);
+  }
+
+  /**
+   * Verify a user's email using the token sent via email.
+   */
+  static async verifyEmail(token: string): Promise<{ user: UserPublic }> {
+    const tokenHash = hashToken(token);
+    const user = await UserModel.findByVerificationToken(tokenHash);
+
+    if (!user) {
+      throw { statusCode: 400, code: 'INVALID_TOKEN', message: 'Invalid or expired verification token' };
+    }
+
+    await UserModel.markEmailVerified(user.id);
+
+    const updatedUser = await UserModel.findById(user.id);
+    if (!updatedUser) {
+      throw { statusCode: 500, code: 'USER_NOT_FOUND', message: 'User not found after verification' };
+    }
+
+    return { user: this.sanitizeUser(updatedUser) };
+  }
+
+  /**
+   * Resend the verification email to the authenticated user.
+   */
+  static async resendVerificationEmail(userId: number): Promise<void> {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw { statusCode: 404, code: 'USER_NOT_FOUND', message: 'User not found' };
+    }
+
+    if (user.email_verified) {
+      throw { statusCode: 400, code: 'ALREADY_VERIFIED', message: 'Email is already verified' };
+    }
+
+    await this.sendVerificationEmail(user);
   }
 
   private static async generateTokens(user: User): Promise<AuthTokens> {

@@ -196,6 +196,16 @@ export class GamificationService {
     }).catch(() => {});
   }
 
+  /**
+   * Award a badge by code if the user doesn't already have it.
+   * Used by ChallengeService and other modules to award badges externally.
+   */
+  static async awardBadgeIfEligible(userId: number, badgeCode: string): Promise<void> {
+    const ownedCodes = new Set(await GamificationModel.getUserBadgeCodes(userId));
+    if (ownedCodes.has(badgeCode)) return;
+    await this.awardBadgeByCode(userId, badgeCode);
+  }
+
   static async getUserGamification(userId: number): Promise<UserGamificationData> {
     await GamificationModel.ensureUserXp(userId);
     const [xpData, badges, unseenCount] = await Promise.all([

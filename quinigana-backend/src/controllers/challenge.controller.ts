@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import { ChallengeModel } from '../models/challenge.model';
 import { JornadaModel } from '../models/jornada.model';
+import { ChallengeService } from '../services/challenge.service';
 import { NotificationService } from '../services/notification.service';
 import { ChallengeAutoService } from '../services/challenge-auto.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { CreateChallengeDto } from '../types';
 
 export class ChallengeController {
-  // Create a new challenge
+  // POST /challenges - Create a new challenge
   static async create(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -38,25 +39,23 @@ export class ChallengeController {
         return;
       }
 
-      // Check no existing challenge
+      // Check no existing active challenge between these users for this jornada
       const exists = await ChallengeModel.existsForJornada(userId, challenged_id, jornada_id);
       if (exists) {
         sendError(res, 'VALIDATION_ERROR', 'Ya existe un reto para esta jornada con este usuario', 400);
         return;
       }
 
-      const challengeId = await ChallengeModel.create(
-        userId,
+      const challenge = await ChallengeService.createChallenge(userId, {
         challenged_id,
         jornada_id,
         wager_points,
-        message
-      );
+        message,
+      });
 
       // Notify the challenged user
       await NotificationService.notifyChallengeReceived(challenged_id, userId, jornada.name);
 
-      const challenge = await ChallengeModel.findByIdWithDetails(challengeId);
       sendSuccess(res, challenge, 'Reto enviado', 201);
     } catch (err) {
       console.error('Create challenge error:', err);
@@ -64,7 +63,147 @@ export class ChallengeController {
     }
   }
 
-  // Get user's challenges
+  // GET /challenges/:id - Get challenge detail
+  static async getById(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      const challengeId = parseInt(req.params.id as string);
+
+      const challenge = await ChallengeModel.findById(challengeId);
+      if (!challenge) {
+        sendError(res, 'NOT_FOUND', 'Reto no encontrado', 404);
+        return;
+      }
+
+      // Check-on-access expiration
+      const checkedChallenge = await ChallengeService.checkAndExpireIfNeeded(challenge);
+
+      // Only participants can view
+      if (checkedChallenge.challenger_id !== userId && checkedChallenge.challenged_id !== userId) {
+        sendError(res, 'FORBIDDEN', 'No tienes acceso a este reto', 403);
+        return;
+      }
+
+      const details = await ChallengeService.getChallengeById(challengeId);
+      sendSuccess(res, details);
+    } catch (err) {
+      console.error('Get challenge error:', err);
+      sendError(res, 'INTERNAL_ERROR', 'Error al obtener el reto', 500);
+    }
+  }
+
+  // PUT /challenges/:id/accept - Accept a challenge
+  static async accept(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      const challengeId = parseInt(req.params.id as string);
+
+      const challenge = await ChallengeModel.findById(challengeId);
+      if (!challenge) {
+        sendError(res, 'NOT_FOUND', 'Reto no encontrado', 404);
+        return;
+      }
+
+      if (challenge.challenged_id !== userId) {
+        sendError(res, 'FORBIDDEN', 'No puedes aceptar este reto', 403);
+        return;
+      }
+
+      // Check-on-access expiration
+      const checkedChallenge = await ChallengeService.checkAndExpireIfNeeded(challenge);
+      if (checkedChallenge.status !== 'pending') {
+        sendError(res, 'VALIDATION_ERROR', 'Este reto ya no esta pendiente', 400);
+        return;
+      }
+
+      // Check jornada still open
+      const jornada = await JornadaModel.findById(challenge.jornada_id);
+      if (!jornada || jornada.status !== 'open') {
+        sendError(res, 'VALIDATION_ERROR', 'La jornada ya no esta disponible', 400);
+        return;
+      }
+
+      // Check user has enough reputation
+      const userRep = await ChallengeModel.getUserReputation(userId);
+      if (userRep < challenge.wager_points) {
+        sendError(res, 'VALIDATION_ERROR', 'No tienes suficientes puntos de reputacion', 400);
+        return;
+      }
+
+      await ChallengeService.acceptChallenge(challengeId, challenge);
+
+      // Notify challenger
+      await NotificationService.notifyChallengeAccepted(challenge.challenger_id, userId, jornada!.name);
+
+      sendSuccess(res, { message: 'Reto aceptado' });
+    } catch (err) {
+      console.error('Accept challenge error:', err);
+      sendError(res, 'INTERNAL_ERROR', 'Error al aceptar el reto', 500);
+    }
+  }
+
+  // PUT /challenges/:id/predictions - Submit predictions context for a challenge
+  static async submitPredictions(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      const challengeId = parseInt(req.params.id as string);
+
+      const challenge = await ChallengeModel.findById(challengeId);
+      if (!challenge) {
+        sendError(res, 'NOT_FOUND', 'Reto no encontrado', 404);
+        return;
+      }
+
+      // Only participants
+      if (challenge.challenger_id !== userId && challenge.challenged_id !== userId) {
+        sendError(res, 'FORBIDDEN', 'No eres participante de este reto', 403);
+        return;
+      }
+
+      if (challenge.status !== 'accepted') {
+        sendError(res, 'VALIDATION_ERROR', 'El reto debe estar aceptado para enviar predicciones', 400);
+        return;
+      }
+
+      // Check jornada still open
+      const jornada = await JornadaModel.findById(challenge.jornada_id);
+      if (!jornada || jornada.status !== 'open') {
+        sendError(res, 'VALIDATION_ERROR', 'La jornada ya no esta disponible para predicciones', 400);
+        return;
+      }
+
+      // Verify the user has active predictions via the proposal system
+      const result = await ChallengeService.verifyPredictions(userId, challenge);
+
+      sendSuccess(res, {
+        challengeId: challenge.id,
+        jornadaId: challenge.jornada_id,
+        hasPredictions: result.hasPredictions,
+        message: result.message,
+      });
+    } catch (err) {
+      console.error('Submit predictions error:', err);
+      sendError(res, 'INTERNAL_ERROR', 'Error al verificar predicciones del reto', 500);
+    }
+  }
+
+  // GET /challenges/history - User challenge history (cursor-based)
+  static async getHistory(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.authUser!.userId;
+      const cursor = req.query.cursor as string | undefined;
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const direction = (req.query.direction as 'next' | 'prev') || 'next';
+
+      const result = await ChallengeModel.getUserChallengeHistory(userId, cursor, limit, direction);
+      sendSuccess(res, result);
+    } catch (err) {
+      console.error('Get challenge history error:', err);
+      sendError(res, 'INTERNAL_ERROR', 'Error al obtener el historial de retos', 500);
+    }
+  }
+
+  // GET /challenges - Get user's challenges (offset-based, backward compat)
   static async getMyChallenges(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -93,7 +232,7 @@ export class ChallengeController {
     }
   }
 
-  // Get pending challenges for user
+  // GET /challenges/pending
   static async getPending(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -105,59 +244,7 @@ export class ChallengeController {
     }
   }
 
-  // Accept a challenge
-  static async accept(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = req.authUser!.userId;
-      const challengeId = parseInt(req.params.id as string);
-
-      const challenge = await ChallengeModel.findById(challengeId);
-      if (!challenge) {
-        sendError(res, 'NOT_FOUND', 'Reto no encontrado', 404);
-        return;
-      }
-
-      if (challenge.challenged_id !== userId) {
-        sendError(res, 'FORBIDDEN', 'No puedes aceptar este reto', 403);
-        return;
-      }
-
-      if (challenge.status !== 'pending') {
-        sendError(res, 'VALIDATION_ERROR', 'Este reto ya no esta pendiente', 400);
-        return;
-      }
-
-      // Check jornada still open
-      const jornada = await JornadaModel.findById(challenge.jornada_id);
-      if (!jornada || jornada.status !== 'open') {
-        sendError(res, 'VALIDATION_ERROR', 'La jornada ya no esta disponible', 400);
-        return;
-      }
-
-      // Check user has enough reputation
-      const userRep = await ChallengeModel.getUserReputation(userId);
-      if (userRep < challenge.wager_points) {
-        sendError(res, 'VALIDATION_ERROR', 'No tienes suficientes puntos de reputacion', 400);
-        return;
-      }
-
-      await ChallengeModel.updateStatus(challengeId, 'accepted', new Date());
-
-      // Ensure stats records exist
-      await ChallengeModel.getOrCreateStats(challenge.challenger_id, challenge.challenged_id);
-      await ChallengeModel.getOrCreateStats(challenge.challenged_id, challenge.challenger_id);
-
-      // Notify challenger
-      await NotificationService.notifyChallengeAccepted(challenge.challenger_id, userId, jornada!.name);
-
-      sendSuccess(res, { message: 'Reto aceptado' });
-    } catch (err) {
-      console.error('Accept challenge error:', err);
-      sendError(res, 'INTERNAL_ERROR', 'Error al aceptar el reto', 500);
-    }
-  }
-
-  // Reject a challenge
+  // POST /challenges/:id/reject - Reject/Decline a challenge
   static async reject(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -174,12 +261,14 @@ export class ChallengeController {
         return;
       }
 
-      if (challenge.status !== 'pending') {
+      // Check-on-access expiration
+      const checkedChallenge = await ChallengeService.checkAndExpireIfNeeded(challenge);
+      if (checkedChallenge.status !== 'pending') {
         sendError(res, 'VALIDATION_ERROR', 'Este reto ya no esta pendiente', 400);
         return;
       }
 
-      await ChallengeModel.updateStatus(challengeId, 'rejected', new Date());
+      await ChallengeService.declineChallenge(challengeId);
       sendSuccess(res, { message: 'Reto rechazado' });
     } catch (err) {
       console.error('Reject challenge error:', err);
@@ -187,7 +276,7 @@ export class ChallengeController {
     }
   }
 
-  // Cancel a challenge (only challenger can cancel pending challenges)
+  // POST /challenges/:id/cancel
   static async cancel(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -209,7 +298,7 @@ export class ChallengeController {
         return;
       }
 
-      await ChallengeModel.updateStatus(challengeId, 'cancelled');
+      await ChallengeService.cancelChallenge(challengeId);
       sendSuccess(res, { message: 'Reto cancelado' });
     } catch (err) {
       console.error('Cancel challenge error:', err);
@@ -217,32 +306,7 @@ export class ChallengeController {
     }
   }
 
-  // Get challenge details
-  static async getById(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = req.authUser!.userId;
-      const challengeId = parseInt(req.params.id as string);
-
-      const challenge = await ChallengeModel.findByIdWithDetails(challengeId);
-      if (!challenge) {
-        sendError(res, 'NOT_FOUND', 'Reto no encontrado', 404);
-        return;
-      }
-
-      // Only participants can view
-      if (challenge.challenger_id !== userId && challenge.challenged_id !== userId) {
-        sendError(res, 'FORBIDDEN', 'No tienes acceso a este reto', 403);
-        return;
-      }
-
-      sendSuccess(res, challenge);
-    } catch (err) {
-      console.error('Get challenge error:', err);
-      sendError(res, 'INTERNAL_ERROR', 'Error al obtener el reto', 500);
-    }
-  }
-
-  // Get user's rivalries (head-to-head stats)
+  // GET /challenges/rivalries
   static async getRivalries(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -254,7 +318,7 @@ export class ChallengeController {
     }
   }
 
-  // Get head-to-head with specific user
+  // GET /challenges/head-to-head/:opponentId
   static async getHeadToHead(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
@@ -273,7 +337,7 @@ export class ChallengeController {
     }
   }
 
-  // Get user's challenge stats
+  // GET /challenges/stats
   static async getMyStats(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;

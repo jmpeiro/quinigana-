@@ -2,10 +2,41 @@ import { Request, Response } from 'express';
 import { ProposalService } from '../services/proposal.service';
 import { CommentService } from '../services/comment.service';
 import { GamificationService } from '../services/gamification.service';
+import { ProposalModel, ProposalSearchParams } from '../models/proposal.model';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { parseId } from '../utils/parse-id.util';
+import { parsePagination } from '../utils/pagination';
+import { parseCursorPagination } from '../utils/cursor-pagination';
 
 export class ProposalController {
+  /**
+   * GET /api/v1/proposals?groupId=&jornadaId=&status=&cursor=&limit=
+   * Top-level search endpoint with cursor-based pagination and filtering.
+   */
+  static async search(req: Request, res: Response): Promise<void> {
+    try {
+      const filters: ProposalSearchParams = {};
+      if (req.query.status) filters.status = req.query.status as 'draft' | 'pending' | 'approved' | 'rejected';
+      if (req.query.groupId) filters.groupId = parseInt(req.query.groupId as string, 10);
+      if (req.query.jornadaId) filters.jornadaId = parseInt(req.query.jornadaId as string, 10);
+
+      // If cursor param is present or filters are used, use cursor-based pagination
+      if (req.query.cursor || Object.keys(filters).length > 0) {
+        const cursorParams = parseCursorPagination(req.query);
+        const data = await ProposalModel.searchWithCursor(filters, cursorParams);
+        sendSuccess(res, data);
+        return;
+      }
+
+      // Fallback: offset-based pagination (backward compat)
+      const { page, limit } = parsePagination(req.query);
+      const data = await ProposalModel.searchWithOffset(filters, page, limit);
+      sendSuccess(res, data);
+    } catch {
+      sendError(res, 'INTERNAL_ERROR', 'Failed to search proposals', 500);
+    }
+  }
+
   static async create(req: Request, res: Response): Promise<void> {
     try {
       const groupId = parseId(req.params.groupId);
@@ -22,8 +53,7 @@ export class ProposalController {
   static async getByGroup(req: Request, res: Response): Promise<void> {
     try {
       const groupId = parseId(req.params.groupId);
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const { page, limit } = parsePagination(req.query);
       const data = await ProposalService.getProposals(groupId, page, limit);
       sendSuccess(res, data);
     } catch (err: any) {
@@ -87,8 +117,7 @@ export class ProposalController {
   static async getComments(req: Request, res: Response): Promise<void> {
     try {
       const proposalId = parseId(req.params.id);
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const { page, limit } = parsePagination(req.query);
       const data = await CommentService.getComments(proposalId, page, limit);
       sendSuccess(res, data);
     } catch (err: any) {

@@ -1,13 +1,18 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { redisClient, createRedisClient } from '../config/redis.config';
 import { verifyAccessToken } from '../config/jwt';
 import { env } from '../config/environment';
 import { JornadaService } from './jornada.service';
+import { UserModel } from '../models/user.model';
+import { setSocketInstance } from './scraper-fallback.service';
 import logger from '../config/logger';
 
 interface ServerToClientEvents {
   'live-scores:update': (data: { jornadaId: number; matches: any[] }) => void;
   'live-scores:error': (data: { message: string }) => void;
+  'scraper:error': (data: { jornadaId: number; message: string; timestamp: string }) => void;
 }
 
 interface ClientToServerEvents {
@@ -34,8 +39,35 @@ export class SocketService {
       transports: ['websocket', 'polling'],
     });
 
+    // Use Redis adapter so multiple server instances share Socket.io state
+    // Only attempt if the main Redis client has connected at least once
+    this.setupRedisAdapter();
+
+    // Share the Socket.io instance with the scraper fallback service
+    // so it can emit 'scraper:error' events to admin users
+    setSocketInstance(this.io);
+
     this.setupAuthMiddleware();
     this.setupConnectionHandlers();
+  }
+
+  private setupRedisAdapter(): void {
+    // Check if the main Redis client is in a usable state
+    if (redisClient.status !== 'ready' && redisClient.status !== 'connect') {
+      logger.warn('Redis unavailable — Socket.io running without Redis adapter (single-instance only)');
+      return;
+    }
+
+    try {
+      const pubClient = createRedisClient();
+      const subClient = createRedisClient();
+      pubClient.on('error', (err) => logger.warn({ err: err.message }, 'Socket.io Redis pub client error'));
+      subClient.on('error', (err) => logger.warn({ err: err.message }, 'Socket.io Redis sub client error'));
+      this.io.adapter(createAdapter(pubClient, subClient));
+      logger.info('Socket.io Redis adapter configured');
+    } catch (err) {
+      logger.warn('Redis unavailable — Socket.io running without Redis adapter (single-instance only)');
+    }
   }
 
   private setupAuthMiddleware(): void {
@@ -61,6 +93,9 @@ export class SocketService {
   private setupConnectionHandlers(): void {
     this.io.on('connection', (socket) => {
       logger.info({ userId: socket.data.userId }, 'Socket connected');
+
+      // Auto-join admin room for admin users so they receive scraper:error events
+      this.joinAdminRoomIfEligible(socket);
 
       socket.on('jornada:join', (jornadaId: number) => {
         this.handleJoinRoom(socket, jornadaId);
@@ -163,6 +198,18 @@ export class SocketService {
       logger.error({ jornadaId, error: message }, 'Live score scrape failed');
       const roomName = `jornada:${jornadaId}`;
       this.io.to(roomName).emit('live-scores:error', { message });
+    }
+  }
+
+  private async joinAdminRoomIfEligible(socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>): Promise<void> {
+    try {
+      const user = await UserModel.findById(socket.data.userId);
+      if (user && (user as any).is_admin) {
+        socket.join('admin');
+        logger.debug({ userId: socket.data.userId }, 'Admin user joined admin room');
+      }
+    } catch {
+      // Non-critical: don't break the connection if admin check fails
     }
   }
 

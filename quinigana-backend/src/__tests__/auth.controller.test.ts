@@ -1,17 +1,28 @@
-import { Request, Response } from 'express';
-import { AuthController } from '../controllers/auth.controller';
-import { AuthService } from '../services/auth.service';
-
 jest.mock('../config/environment', () => ({
   env: {
+    port: 3000,
     nodeEnv: 'test',
     frontendUrl: 'http://localhost:4200',
     db: { host: 'localhost', port: 3306, user: 'root', password: '', name: 'test' },
-    jwt: { accessSecret: 'test', refreshSecret: 'test', accessExpiry: '15m', refreshExpiry: '7d' },
+    jwt: { accessSecret: 'test-secret-min-32-chars-long!!!', refreshSecret: 'test-refresh-min-32-chars!!!!!!!', accessExpiry: '15m', refreshExpiry: '7d' },
     email: { host: 'smtp.test.com', port: 587, user: 'test', pass: 'test', from: 'test@test.com' },
     google: { clientId: '', clientSecret: '', callbackUrl: '' },
     rateLimit: { windowMs: 900000, max: 100 },
+    footballData: { apiKey: 'test-api-key' },
+    webPush: { publicKey: '', privateKey: '', subject: 'mailto:test@test.com' },
+    socket: { scrapeIntervalMs: 30000 },
+    redis: { host: 'localhost', port: 6379, password: '' },
+    scraper: { proxyUrl: '', minDelayMs: 300, maxDelayMs: 800, cacheTtlMs: 25000, timeoutMs: 15000, maxRetries: 2 },
   },
+}));
+jest.mock('../config/jwt', () => ({
+  generateAccessToken: jest.fn().mockReturnValue('mock-access-token'),
+  generateRefreshToken: jest.fn().mockReturnValue('mock-refresh-token'),
+  verifyAccessToken: jest.fn(),
+  verifyRefreshToken: jest.fn(),
+}));
+jest.mock('../services/web-push.service', () => ({
+  WebPushService: { sendToUser: jest.fn().mockResolvedValue(undefined), sendToUsers: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('../config/database', () => ({
   __esModule: true,
@@ -20,6 +31,10 @@ jest.mock('../config/database', () => ({
 }));
 jest.mock('../services/auth.service');
 jest.mock('../services/email.service');
+
+import { Request, Response } from 'express';
+import { AuthController } from '../controllers/auth.controller';
+import { AuthService } from '../services/auth.service';
 
 function mockRes(): Response {
   const res = {} as Response;

@@ -2,13 +2,13 @@ import { Request, Response } from 'express';
 import { NotificationService } from '../services/notification.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { parseId } from '../utils/parse-id.util';
+import { parsePagination } from '../utils/pagination';
 
 export class NotificationController {
   static async getNotifications(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const { page, limit } = parsePagination(req.query);
 
       const data = await NotificationService.getNotifications(userId, page, limit);
       sendSuccess(res, data);

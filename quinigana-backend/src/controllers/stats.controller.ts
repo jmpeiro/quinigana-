@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { StatsService } from '../services/stats.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { parseId } from '../utils/parse-id.util';
+import { parsePagination } from '../utils/pagination';
 
 export class StatsController {
   static async getPersonalStats(req: Request, res: Response): Promise<void> {
@@ -18,8 +19,7 @@ export class StatsController {
   static async getGroupHistory(req: Request, res: Response): Promise<void> {
     try {
       const groupId = parseId(req.params.id);
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const { page, limit } = parsePagination(req.query);
 
       const data = await StatsService.getGroupHistory(groupId, page, limit);
       sendSuccess(res, data);
@@ -57,8 +57,7 @@ export class StatsController {
   static async getPredictionHistory(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const { page, limit } = parsePagination(req.query);
 
       const data = await StatsService.getPredictionHistory(userId, page, limit);
       sendSuccess(res, data);
@@ -69,11 +68,8 @@ export class StatsController {
 
   static async getGlobalRankings(req: Request, res: Response): Promise<void> {
     try {
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
-      const seasonId = req.query.seasonId ? parseInt(req.query.seasonId as string) : undefined;
-      const groupId = req.query.groupId ? parseInt(req.query.groupId as string) : undefined;
-      const data = await StatsService.getGlobalRankings(page, limit, { seasonId, groupId });
+      const { page, limit } = parsePagination(req.query);
+      const data = await StatsService.getGlobalRankings(page, limit);
       sendSuccess(res, data);
     } catch (err: any) {
       sendError(res, err.code || 'GLOBAL_RANKING_ERROR', err.message || 'Error fetching global rankings', err.statusCode || 500);
@@ -100,17 +96,6 @@ export class StatsController {
       sendSuccess(res, data);
     } catch (err: any) {
       sendError(res, err.code || 'HEATMAP_ERROR', err.message || 'Error fetching heatmap', err.statusCode || 500);
-    }
-  }
-
-  static async getStreaks(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = req.authUser!.userId;
-      const seasonId = req.query.seasonId ? parseInt(req.query.seasonId as string) : undefined;
-      const data = await StatsService.getStreakSummary(userId, seasonId);
-      sendSuccess(res, data);
-    } catch (err: any) {
-      sendError(res, err.code || 'STREAKS_ERROR', err.message || 'Error fetching streaks', err.statusCode || 500);
     }
   }
 }

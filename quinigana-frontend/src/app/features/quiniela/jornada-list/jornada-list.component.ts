@@ -13,6 +13,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { Jornada } from '../../../core/models/jornada.model';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import { SearchFilterComponent, SearchFilterChange, FilterConfig } from '../../../shared/search-filter/search-filter.component';
+import { ExportButtonComponent } from '../../../shared/export-button/export-button.component';
 
 @Component({
   selector: 'app-jornada-list',
@@ -28,12 +30,15 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
     MatButtonModule,
     ErrorCardComponent,
     SkeletonComponent,
+    SearchFilterComponent,
+    ExportButtonComponent,
   ],
   template: `
     <div class="jornada-list-container">
       <div class="page-header">
         <h1 class="page-title">Jornadas</h1>
         <div class="header-actions">
+          <app-export-button exportType="predictions" />
           @if (isAdmin()) {
             <a mat-raised-button class="btn-create" routerLink="/admin/jornadas">
               <mat-icon>add</mat-icon>
@@ -46,6 +51,12 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
         </div>
       </div>
 
+      <app-search-filter
+        placeholder="Buscar jornada..."
+        [filters]="filterConfigs"
+        (filterChange)="onFilterChange($event)"
+      />
+
       @if (loading()) {
         <div class="skeleton-jornadas">
           <app-skeleton variant="card" width="100%" height="130px" />
@@ -56,7 +67,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
         <app-error-card [message]="error()!" (retry)="loadJornadas()" />
       } @else {
         <div class="jornadas-grid">
-          @for (jornada of jornadas(); track jornada.id) {
+          @for (jornada of filteredJornadas(); track jornada.id) {
             <mat-card class="jornada-card" (click)="navigateToDetail(jornada.id)" tabindex="0">
               <mat-card-header>
                 <mat-card-title>{{ jornada.name }}</mat-card-title>
@@ -79,7 +90,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           } @empty {
             <div class="empty-state">
               <mat-icon>sports_soccer</mat-icon>
-              <p>No jornadas available yet.</p>
+              <p>No se encontraron jornadas.</p>
             </div>
           }
         </div>
@@ -267,8 +278,57 @@ export class JornadaListComponent implements OnInit {
   error = signal<string | null>(null);
   isAdmin = computed(() => !!this.authService.currentUser()?.is_admin);
 
+  /** Search & filter state */
+  private searchTerm = signal('');
+  private statusFilter = signal('');
+  private seasonFilter = signal('');
+
+  filterConfigs: FilterConfig[] = [
+    {
+      key: 'status',
+      label: 'Estado',
+      options: [
+        { value: 'open', label: 'Abierta' },
+        { value: 'closed', label: 'Cerrada' },
+        { value: 'finished', label: 'Finalizada' },
+      ],
+    },
+  ];
+
+  /** Computed filtered list based on search and filters */
+  filteredJornadas = computed(() => {
+    let result = this.jornadas();
+    const search = this.searchTerm().toLowerCase();
+    const status = this.statusFilter();
+    const season = this.seasonFilter();
+
+    if (search) {
+      result = result.filter(j =>
+        j.name.toLowerCase().includes(search) ||
+        j.season.toLowerCase().includes(search) ||
+        j.jornada_number.toString().includes(search)
+      );
+    }
+
+    if (status) {
+      result = result.filter(j => j.status === status);
+    }
+
+    if (season) {
+      result = result.filter(j => j.season === season);
+    }
+
+    return result;
+  });
+
   ngOnInit(): void {
     this.loadJornadas();
+  }
+
+  onFilterChange(event: SearchFilterChange): void {
+    this.searchTerm.set(event.search);
+    this.statusFilter.set(event.filters['status'] || '');
+    this.seasonFilter.set(event.filters['season'] || '');
   }
 
   loadJornadas(): void {
@@ -279,6 +339,7 @@ export class JornadaListComponent implements OnInit {
       next: (response) => {
         if (response.success && response.data) {
           this.jornadas.set(response.data);
+          this.updateSeasonFilter(response.data);
         } else {
           this.error.set('Failed to load jornadas.');
         }
@@ -305,5 +366,21 @@ export class JornadaListComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit',
     });
+  }
+
+  /** Dynamically build season filter options from loaded data */
+  private updateSeasonFilter(jornadas: Jornada[]): void {
+    const seasons = [...new Set(jornadas.map(j => j.season))].sort();
+    if (seasons.length > 1) {
+      const seasonConfig: FilterConfig = {
+        key: 'season',
+        label: 'Temporada',
+        options: seasons.map(s => ({ value: s, label: s })),
+      };
+      // Update filter configs to include season if not already present
+      if (!this.filterConfigs.find(f => f.key === 'season')) {
+        this.filterConfigs = [...this.filterConfigs, seasonConfig];
+      }
+    }
   }
 }

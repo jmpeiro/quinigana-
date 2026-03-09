@@ -3,6 +3,8 @@ import { AdminService } from '../services/admin.service';
 import { OpsMetricsService } from '../services/ops-metrics.service';
 import { FootballDataService } from '../services/football-data.service';
 import { QuinielaScraper } from '../services/quiniela-scraper.service';
+import { UserModel } from '../models/user.model';
+import { GroupModel } from '../models/group.model';
 import { sendSuccess, sendError } from '../utils/response.util';
 
 export class AdminController {
@@ -201,6 +203,58 @@ export class AdminController {
       sendSuccess(res, null, 'Jornada reopened');
     } catch {
       sendError(res, 'INTERNAL_ERROR', 'Failed to reopen jornada', 500);
+    }
+  }
+
+  // =====================================================
+  // SOFT-DELETE MANAGEMENT (Migration 020)
+  // =====================================================
+
+  /**
+   * PATCH /admin/users/:id/reactivate - Reactivate a soft-deleted or deactivated user
+   */
+  static async reactivateUser(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = Number(req.params.id);
+      if (!userId) {
+        sendError(res, 'INVALID_ID', 'Invalid user ID', 400);
+        return;
+      }
+
+      const user = await UserModel.findByIdIncludeDeleted(userId);
+      if (!user) {
+        sendError(res, 'NOT_FOUND', 'User not found', 404);
+        return;
+      }
+
+      await UserModel.reactivateAccount(userId);
+      sendSuccess(res, null, 'User account reactivated');
+    } catch {
+      sendError(res, 'INTERNAL_ERROR', 'Failed to reactivate user', 500);
+    }
+  }
+
+  /**
+   * PATCH /admin/groups/:id/reactivate - Reactivate a soft-deleted group
+   */
+  static async reactivateGroup(req: Request, res: Response): Promise<void> {
+    try {
+      const groupId = Number(req.params.id);
+      if (!groupId) {
+        sendError(res, 'INVALID_ID', 'Invalid group ID', 400);
+        return;
+      }
+
+      const group = await GroupModel.findByIdIncludeDeleted(groupId);
+      if (!group) {
+        sendError(res, 'NOT_FOUND', 'Group not found', 404);
+        return;
+      }
+
+      await GroupModel.reactivate(groupId);
+      sendSuccess(res, null, 'Group reactivated');
+    } catch {
+      sendError(res, 'INTERNAL_ERROR', 'Failed to reactivate group', 500);
     }
   }
 }

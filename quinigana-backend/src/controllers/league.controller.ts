@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { LeagueModel } from '../models/league.model';
+import { LeagueService } from '../services/league.service';
 import { sendSuccess, sendError } from '../utils/response.util';
+import { parsePagination } from '../utils/pagination';
 
 export class LeagueController {
   // Get all divisions
@@ -59,8 +61,7 @@ export class LeagueController {
   static async getDivisionStandings(req: Request, res: Response): Promise<void> {
     try {
       const divisionId = parseInt(req.params.divisionId as string);
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const { page, limit } = parsePagination(req.query);
       const offset = (page - 1) * limit;
 
       const season = await LeagueModel.getActiveSeason();
@@ -174,11 +175,8 @@ export class LeagueController {
         return;
       }
 
-      // Process all promotions and relegations
-      await LeagueModel.processSeasonEnd(seasonId);
-
-      // Mark season as completed
-      await LeagueModel.updateSeasonStatus(seasonId, 'completed');
+      // Process promotions/relegations + mark completed inside a transaction
+      await LeagueService.processSeasonEnd(seasonId);
 
       sendSuccess(res, { message: 'Temporada finalizada, ascensos/descensos procesados' });
     } catch (err) {

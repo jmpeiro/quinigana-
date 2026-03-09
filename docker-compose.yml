@@ -18,6 +18,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./quinigana-backend
     ports:
@@ -30,12 +43,16 @@ services:
       DB_USER: quinigana
       DB_PASSWORD: quinigana_pass
       DB_NAME: quinigana_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-access-secret-in-production}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-refresh-secret-in-production}
       FRONTEND_URL: http://localhost
       LOG_LEVEL: info
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend:
@@ -47,3 +64,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:

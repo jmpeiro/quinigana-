@@ -1,6 +1,7 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://quinigana.com/api',
-  wsUrl: 'http://quinigana.com',
-  googleClientId: '792595646117-m86ur1mtd0u1cbm3dtn3ctpgo3hd5rbl.apps.googleusercontent.com',
+  apiUrl: 'http://localhost:3000/api',
+  wsUrl: 'http://localhost:3000',
+  googleClientId: 'your-google-client-id.apps.googleusercontent.com',
+  debug: true,
 };

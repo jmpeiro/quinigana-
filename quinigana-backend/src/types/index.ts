@@ -10,6 +10,8 @@ export interface User {
   email_verified: boolean;
   is_active: boolean;
   is_admin: boolean;
+  deleted_at: Date | null;
+  deletion_requested_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -64,6 +66,7 @@ export interface ApiResponse<T = unknown> {
     code: string;
     message: string;
     details?: unknown[];
+    requestId?: string;
   };
 }
 
@@ -588,7 +591,7 @@ export interface UserGamificationData {
 
 // ===== Module 10: Challenges (1vs1) =====
 
-export type ChallengeStatus = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
+export type ChallengeStatus = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'expired';
 
 export interface Challenge {
   id: number;
@@ -604,6 +607,7 @@ export interface Challenge {
   created_at: Date;
   responded_at: Date | null;
   completed_at: Date | null;
+  expired_at: Date | null;
 }
 
 export interface ChallengeWithDetails extends Challenge {

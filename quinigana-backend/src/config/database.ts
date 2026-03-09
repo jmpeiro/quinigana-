@@ -8,7 +8,7 @@ const pool = mysql.createPool({
   password: env.db.password,
   database: env.db.name,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 20,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
@@ -22,6 +22,30 @@ export async function testConnection(): Promise<void> {
   } catch (error) {
     console.error('✗ Database connection failed:', error);
     throw error;
+  }
+}
+
+/**
+ * Execute a callback inside a database transaction.
+ * Automatically commits on success and rolls back on error.
+ *
+ * @param callback - Receives a dedicated connection to run queries on.
+ * @returns The value returned by the callback.
+ */
+export async function withTransaction<T>(
+  callback: (connection: mysql.PoolConnection) => Promise<T>
+): Promise<T> {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 }
 

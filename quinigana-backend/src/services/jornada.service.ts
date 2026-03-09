@@ -3,45 +3,19 @@ import { MatchModel } from '../models/match.model';
 import { UserModel } from '../models/user.model';
 import { ProposalModel } from '../models/proposal.model';
 import { NotificationService } from './notification.service';
-import { QuinielaScraper } from './quiniela-scraper.service';
+import { ScraperFallbackService } from './scraper-fallback.service';
+import { CacheService } from './cache.service';
+import { CacheKey } from '../config/cache';
 import { CreateJornadaDto, SubmitResultsDto } from '../types';
-import { findLiveResultByHomeTeam } from '../utils/team-name.util';
+import logger from '../config/logger';
 
 export class JornadaService {
   static async createJornada(data: CreateJornadaDto) {
-    const existing = await JornadaModel.findBySeasonAndNumber(data.season, data.jornada_number);
-    if (existing) {
-      throw {
-        statusCode: 409,
-        code: 'JORNADA_EXISTS',
-        message: `Jornada ${data.jornada_number} already exists for season ${data.season}`,
-      };
-    }
-
-    const matchNumbers = data.matches.map(match => match.match_number);
-    if (new Set(matchNumbers).size !== matchNumbers.length) {
-      throw {
-        statusCode: 400,
-        code: 'DUPLICATE_MATCH_NUMBERS',
-        message: 'Match numbers must be unique within the jornada',
-      };
-    }
-
-    let jornadaId: number;
-    try {
-      jornadaId = await JornadaModel.create(data.name, data.season, data.jornada_number, data.deadline);
-    } catch (error: any) {
-      if (error?.code === 'ER_DUP_ENTRY') {
-        throw {
-          statusCode: 409,
-          code: 'JORNADA_EXISTS',
-          message: `Jornada ${data.jornada_number} already exists for season ${data.season}`,
-        };
-      }
-      throw error;
-    }
-
+    const jornadaId = await JornadaModel.create(data.name, data.season, data.jornada_number, data.deadline);
     await MatchModel.createMany(jornadaId, data.matches);
+
+    // Invalidate jornada list cache
+    CacheService.invalidateByPrefix(CacheKey.JORNADA_LIST);
 
     // Notify all active users about new jornada
     UserModel.getAllActiveUserIds().then(userIds => {
@@ -55,8 +29,21 @@ export class JornadaService {
     return JornadaModel.findAll();
   }
 
-  static async getAllForUser(userId: number) {
-    return JornadaModel.findForUser(userId);
+  static async getAllForUser(userId: number, page: number = 1, limit: number = 20) {
+    const cacheKey = CacheService.buildKey(CacheKey.JORNADA_LIST, userId, page, limit);
+    const cached = CacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const { items, total } = await JornadaModel.findForUser(userId, page, limit);
+    const result = {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+    CacheService.set(cacheKey, result);
+    return result;
   }
 
   static async getById(id: number) {
@@ -64,7 +51,14 @@ export class JornadaService {
   }
 
   static async getActive() {
-    return JornadaModel.findActive();
+    const cacheKey = CacheService.buildKey(CacheKey.JORNADA_LIST, 'active');
+    const cached = CacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const result = await JornadaModel.findActive();
+    // Cache active jornada for 2 minutes (shorter TTL since it changes)
+    CacheService.set(cacheKey, result, 120);
+    return result;
   }
 
   static async updateStatus(id: number, status: 'open' | 'closed' | 'finished') {
@@ -73,6 +67,10 @@ export class JornadaService {
       throw new Error('Jornada not found');
     }
     await JornadaModel.updateStatus(id, status);
+
+    // Invalidate caches when jornada status changes (especially on close/finish)
+    CacheService.invalidateScoresAndStandings();
+
     return JornadaModel.findById(id);
   }
 
@@ -82,12 +80,14 @@ export class JornadaService {
       throw new Error('Jornada not found');
     }
 
-    // Scrape live results from resultados-futbol.com (Primera + Segunda)
+    // Use the scraper fallback service (primary: football-data API, fallback: resultados-futbol)
     let liveResults: Map<string, { home_score: number; away_score: number; status: string }> | null = null;
     try {
-      liveResults = await QuinielaScraper.getLiveResults();
-    } catch {
-      // Scraping failed - fall back to local DB results only
+      const scraperResult = await ScraperFallbackService.getLiveScores(jornadaId);
+      liveResults = scraperResult.matches;
+      logger.debug({ jornadaId, source: scraperResult.source, matchCount: liveResults.size }, 'Live scores fetched');
+    } catch (err) {
+      logger.warn({ jornadaId, err }, 'All scraper sources failed — falling back to local DB results');
     }
 
     return jornada.matches.map(m => {
@@ -96,9 +96,19 @@ export class JornadaService {
       let sign: string | null = null;
       let status = 'SCHEDULED';
 
-      // Try live data from scraper using normalized/fuzzy home-team matching
+      // Try live data from scraper (keyed by home team name lowercase)
       if (liveResults) {
-        const live = findLiveResultByHomeTeam(liveResults, m.home_team);
+        const dbName = m.home_team.toLowerCase().replace(/\./g, '').trim();
+        let live = liveResults.get(dbName);
+        // Fuzzy match: DB name may be abbreviated (e.g. "Atlético de Ma" vs "Atlético de Madrid")
+        if (!live) {
+          for (const [key, val] of liveResults) {
+            if (key.startsWith(dbName) || dbName.startsWith(key.replace(/\./g, ''))) {
+              live = val;
+              break;
+            }
+          }
+        }
         if (live) {
           homeScore = live.home_score;
           awayScore = live.away_score;
@@ -146,6 +156,9 @@ export class JornadaService {
       await MatchModel.addResult(result.match_id, result.home_score, result.away_score);
     }
 
+    // Invalidate caches after results are submitted
+    CacheService.invalidateScoresAndStandings();
+
     // Notify all active users about results published
     UserModel.getAllActiveUserIds().then(userIds => {
       NotificationService.notifyResultsPublished(jornada.name, userIds).catch(() => {});
@@ -154,4 +167,3 @@ export class JornadaService {
     return JornadaModel.findByIdWithMatches(jornadaId);
   }
 }
-

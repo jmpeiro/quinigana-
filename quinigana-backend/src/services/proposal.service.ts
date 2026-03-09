@@ -4,6 +4,7 @@ import { GroupModel } from '../models/group.model';
 import { JornadaModel } from '../models/jornada.model';
 import { MatchModel } from '../models/match.model';
 import { NotificationService } from './notification.service';
+import { withTransaction } from '../config/database';
 import { CreateProposalDto } from '../types';
 
 export class ProposalService {
@@ -130,6 +131,10 @@ export class ProposalService {
     return ProposalModel.getWithDetails(proposalId, userId);
   }
 
+  /**
+   * Vote on a proposal. The vote recording and status update
+   * are wrapped in a transaction to prevent race conditions.
+   */
   static async vote(proposalId: number, userId: number, vote: 'approve' | 'reject') {
     const proposal = await ProposalModel.findById(proposalId);
     if (!proposal) {
@@ -149,19 +154,46 @@ export class ProposalService {
       throw new Error('You have already voted on this proposal');
     }
 
-    await VoteModel.create(proposalId, userId, vote);
+    // Transaction: record vote + check majority + update status atomically
+    await withTransaction(async (conn) => {
+      // Insert the vote
+      await conn.execute(
+        'INSERT INTO proposal_votes (proposal_id, user_id, vote) VALUES (?, ?, ?)',
+        [proposalId, userId, vote]
+      );
 
-    const { votesFor, votesAgainst } = await VoteModel.countVotes(proposalId);
-    await ProposalModel.updateVoteCounts(proposalId, votesFor, votesAgainst);
+      // Count votes using the transaction connection for consistency
+      const [voteRows] = await conn.execute<import('mysql2').RowDataPacket[]>(
+        `SELECT
+           SUM(CASE WHEN vote = 'approve' THEN 1 ELSE 0 END) as votesFor,
+           SUM(CASE WHEN vote = 'reject' THEN 1 ELSE 0 END) as votesAgainst
+         FROM proposal_votes WHERE proposal_id = ?`,
+        [proposalId]
+      );
+      const votesFor = Number((voteRows[0] as any).votesFor) || 0;
+      const votesAgainst = Number((voteRows[0] as any).votesAgainst) || 0;
 
-    const totalMembers = proposal.total_members_at_creation;
-    const majority = Math.floor(totalMembers / 2) + 1;
+      // Update vote counts
+      await conn.execute(
+        'UPDATE quiniela_proposals SET votes_for = ?, votes_against = ? WHERE id = ?',
+        [votesFor, votesAgainst, proposalId]
+      );
 
-    if (votesFor >= majority) {
-      await ProposalModel.updateStatus(proposalId, 'approved');
-    } else if (votesAgainst >= majority) {
-      await ProposalModel.updateStatus(proposalId, 'rejected');
-    }
+      const totalMembers = proposal.total_members_at_creation;
+      const majority = Math.floor(totalMembers / 2) + 1;
+
+      if (votesFor >= majority) {
+        await conn.execute(
+          "UPDATE quiniela_proposals SET status = 'approved' WHERE id = ?",
+          [proposalId]
+        );
+      } else if (votesAgainst >= majority) {
+        await conn.execute(
+          "UPDATE quiniela_proposals SET status = 'rejected' WHERE id = ?",
+          [proposalId]
+        );
+      }
+    });
 
     return ProposalModel.getWithDetails(proposalId, userId);
   }

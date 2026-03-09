@@ -2,6 +2,8 @@ import pool from '../config/database';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { Challenge, ChallengeWithDetails, ChallengeStats, RivalryStats } from '../types';
 
+const CHALLENGE_EXPIRY_HOURS = 48;
+
 export class ChallengeModel {
   static async create(
     challengerId: number,
@@ -86,6 +88,75 @@ export class ChallengeModel {
     };
   }
 
+  /**
+   * Cursor-based pagination for challenge history (API spec compliant).
+   */
+  static async getUserChallengeHistory(
+    userId: number,
+    cursor?: string,
+    limit = 20,
+    direction: 'next' | 'prev' = 'next'
+  ): Promise<{ data: ChallengeWithDetails[]; nextCursor: string | null; prevCursor: string | null; total: number }> {
+    const params: (number | string)[] = [userId, userId];
+    let cursorClause = '';
+
+    if (cursor) {
+      const cursorId = parseInt(Buffer.from(cursor, 'base64').toString('utf-8'), 10);
+      if (!isNaN(cursorId)) {
+        if (direction === 'next') {
+          cursorClause = ' AND c.id < ?';
+        } else {
+          cursorClause = ' AND c.id > ?';
+        }
+        params.push(cursorId);
+      }
+    }
+
+    const [countRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM challenges c
+       WHERE (c.challenger_id = ? OR c.challenged_id = ?)`,
+      [userId, userId]
+    );
+
+    const orderDir = direction === 'prev' ? 'ASC' : 'DESC';
+
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT c.*,
+              u1.first_name as challenger_name, u1.avatar_url as challenger_avatar,
+              u2.first_name as challenged_name, u2.avatar_url as challenged_avatar,
+              j.name as jornada_name,
+              u3.first_name as winner_name
+       FROM challenges c
+       JOIN users u1 ON c.challenger_id = u1.id
+       JOIN users u2 ON c.challenged_id = u2.id
+       JOIN jornadas j ON c.jornada_id = j.id
+       LEFT JOIN users u3 ON c.winner_id = u3.id
+       WHERE (c.challenger_id = ? OR c.challenged_id = ?)${cursorClause}
+       ORDER BY c.id ${orderDir}
+       LIMIT ?`,
+      [...params, limit + 1]
+    );
+
+    let data = rows as ChallengeWithDetails[];
+    const hasMore = data.length > limit;
+    if (hasMore) data = data.slice(0, limit);
+    if (direction === 'prev') data.reverse();
+
+    const nextCursor = hasMore && data.length > 0
+      ? Buffer.from(String(data[data.length - 1].id)).toString('base64')
+      : null;
+    const prevCursor = data.length > 0
+      ? Buffer.from(String(data[0].id)).toString('base64')
+      : null;
+
+    return {
+      data,
+      nextCursor,
+      prevCursor,
+      total: (countRows[0] as RowDataPacket).total,
+    };
+  }
+
   static async getPendingChallengesForUser(userId: number): Promise<ChallengeWithDetails[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT c.*,
@@ -156,31 +227,75 @@ export class ChallengeModel {
   ): Promise<boolean> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT id FROM challenges
-       WHERE challenger_id = ? AND challenged_id = ? AND jornada_id = ?`,
+       WHERE challenger_id = ? AND challenged_id = ? AND jornada_id = ?
+       AND status NOT IN ('cancelled', 'expired', 'rejected')`,
       [challengerId, challengedId, jornadaId]
     );
     return rows.length > 0;
   }
 
-  static async existsBetweenUsersForJornada(
-    userAId: number,
-    userBId: number,
-    jornadaId: number
-  ): Promise<boolean> {
+  // =====================================================
+  // EXPIRATION LOGIC
+  // =====================================================
+
+  /**
+   * Find all pending challenges older than 48 hours.
+   */
+  static async findExpiredPendingChallenges(): Promise<Challenge[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id FROM challenges
-       WHERE jornada_id = ?
-         AND (
-           (challenger_id = ? AND challenged_id = ?)
-           OR (challenger_id = ? AND challenged_id = ?)
-         )
-       LIMIT 1`,
-      [jornadaId, userAId, userBId, userBId, userAId]
+      `SELECT * FROM challenges
+       WHERE status = 'pending'
+         AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+      [CHALLENGE_EXPIRY_HOURS]
     );
-    return rows.length > 0;
+    return rows as Challenge[];
   }
 
-  // Challenge Stats
+  /**
+   * Mark a single challenge as expired.
+   */
+  static async expireChallenge(id: number): Promise<void> {
+    await pool.execute(
+      `UPDATE challenges SET status = 'expired', expired_at = NOW() WHERE id = ? AND status = 'pending'`,
+      [id]
+    );
+  }
+
+  /**
+   * Bulk-expire all pending challenges older than 48h. Returns count of expired.
+   */
+  static async expireOldPendingChallenges(): Promise<number> {
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE challenges
+       SET status = 'expired', expired_at = NOW()
+       WHERE status = 'pending'
+         AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+      [CHALLENGE_EXPIRY_HOURS]
+    );
+    return result.affectedRows;
+  }
+
+  /**
+   * Check-on-access: if a specific challenge is pending and expired, auto-expire it.
+   */
+  static async checkAndExpireIfNeeded(challenge: Challenge): Promise<Challenge> {
+    if (challenge.status !== 'pending') return challenge;
+
+    const createdAt = new Date(challenge.created_at);
+    const expiryTime = new Date(createdAt.getTime() + CHALLENGE_EXPIRY_HOURS * 60 * 60 * 1000);
+
+    if (new Date() > expiryTime) {
+      await this.expireChallenge(challenge.id);
+      return { ...challenge, status: 'expired', expired_at: new Date() } as Challenge;
+    }
+
+    return challenge;
+  }
+
+  // =====================================================
+  // CHALLENGE STATS
+  // =====================================================
+
   static async getOrCreateStats(userId: number, opponentId: number): Promise<ChallengeStats> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM challenge_stats WHERE user_id = ? AND opponent_id = ?',
@@ -267,51 +382,46 @@ export class ChallengeModel {
     return rows.length > 0 ? (rows[0] as RivalryStats) : null;
   }
 
-  static async getHeadToHeadRecent(
-    userId: number,
-    opponentId: number,
-    limit: number = 10
-  ): Promise<Array<{
-    challenge_id: number;
-    jornada_name: string;
-    winner_id: number | null;
-    challenger_id: number;
-    challenged_id: number;
-    challenger_score: number | null;
-    challenged_score: number | null;
-    completed_at: Date | null;
-  }>> {
+  static async getHeadToHeadRecent(userId: number, opponentId: number, limit: number = 10): Promise<any[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT c.id as challenge_id,
-              j.name as jornada_name,
-              c.winner_id,
-              c.challenger_id,
-              c.challenged_id,
-              c.challenger_score,
-              c.challenged_score,
-              c.completed_at
+      `SELECT c.id, c.status, c.winner_id, c.points, c.created_at, c.resolved_at,
+              j.name as jornada_name
        FROM challenges c
-       JOIN jornadas j ON j.id = c.jornada_id
-       WHERE c.status = 'completed'
-         AND (
-           (c.challenger_id = ? AND c.challenged_id = ?)
-           OR (c.challenger_id = ? AND c.challenged_id = ?)
-         )
-       ORDER BY c.completed_at DESC
+       LEFT JOIN jornadas j ON c.jornada_id = j.id
+       WHERE (c.challenger_id = ? AND c.challenged_id = ?)
+          OR (c.challenger_id = ? AND c.challenged_id = ?)
+       ORDER BY c.created_at DESC
        LIMIT ?`,
       [userId, opponentId, opponentId, userId, limit]
     );
+    return rows as any[];
+  }
 
-    return rows as Array<{
-      challenge_id: number;
-      jornada_name: string;
-      winner_id: number | null;
-      challenger_id: number;
-      challenged_id: number;
-      challenger_score: number | null;
-      challenged_score: number | null;
-      completed_at: Date | null;
-    }>;
+  static async existsBetweenUsersForJornada(userId1: number, userId2: number, jornadaId: number): Promise<boolean> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT 1 FROM challenges
+       WHERE jornada_id = ?
+         AND ((challenger_id = ? AND challenged_id = ?) OR (challenger_id = ? AND challenged_id = ?))
+       LIMIT 1`,
+      [jornadaId, userId1, userId2, userId2, userId1]
+    );
+    return rows.length > 0;
+  }
+
+  static async getUserJornadaPerformance(userId: number, jornadaId: number): Promise<{ correctPredictions: number; totalPoints: number }> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT
+        COALESCE(SUM(CASE WHEN p.points > 0 THEN 1 ELSE 0 END), 0) as correctPredictions,
+        COALESCE(SUM(p.points), 0) as totalPoints
+       FROM proposals p
+       WHERE p.user_id = ? AND p.jornada_id = ?`,
+      [userId, jornadaId]
+    );
+    const row = rows[0] as any;
+    return {
+      correctPredictions: Number(row?.correctPredictions || 0),
+      totalPoints: Number(row?.totalPoints || 0),
+    };
   }
 
   // Reputation points
@@ -384,27 +494,51 @@ export class ChallengeModel {
     };
   }
 
-  static async getUserJornadaPerformance(userId: number, jornadaId: number): Promise<{
-    totalPoints: number;
-    correct1x2: number;
-    correctPleno: number;
-  }> {
+  /**
+   * Get the number of completed challenge wins for a user (for badges).
+   */
+  static async getUserWinCount(userId: number): Promise<number> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT
-        COALESCE(SUM(gs.total_points), 0) as totalPoints,
-        COALESCE(SUM(gs.correct_1x2), 0) as correct1x2,
-        COALESCE(SUM(gs.correct_pleno), 0) as correctPleno
-       FROM group_scores gs
-       INNER JOIN group_members gm ON gm.group_id = gs.group_id
-       WHERE gm.user_id = ? AND gs.jornada_id = ?`,
-      [userId, jornadaId]
+      `SELECT COUNT(*) as wins FROM challenges
+       WHERE winner_id = ? AND status = 'completed'`,
+      [userId]
+    );
+    return Number((rows[0] as RowDataPacket).wins || 0);
+  }
+
+  /**
+   * Get the user's current win streak (for undefeated badge).
+   */
+  static async getUserWinStreak(userId: number): Promise<number> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT winner_id
+       FROM challenges
+       WHERE (challenger_id = ? OR challenged_id = ?) AND status = 'completed'
+       ORDER BY completed_at DESC
+       LIMIT 20`,
+      [userId, userId]
     );
 
-    const row = rows[0] as RowDataPacket;
-    return {
-      totalPoints: Number(row.totalPoints || 0),
-      correct1x2: Number(row.correct1x2 || 0),
-      correctPleno: Number(row.correctPleno || 0),
-    };
+    let streak = 0;
+    for (const row of rows as RowDataPacket[]) {
+      if (row.winner_id === userId) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /**
+   * Get total completed challenges for a user (for first_challenge badge).
+   */
+  static async getUserCompletedCount(userId: number): Promise<number> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) as count FROM challenges
+       WHERE (challenger_id = ? OR challenged_id = ?) AND status = 'completed'`,
+      [userId, userId]
+    );
+    return Number((rows[0] as RowDataPacket).count || 0);
   }
 }

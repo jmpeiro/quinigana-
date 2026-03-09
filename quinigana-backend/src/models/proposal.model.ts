@@ -1,6 +1,18 @@
 ﻿import pool from '../config/database';
 import { QuinielaProposal, ProposalPrediction, ProposalWithDetails, Prediction1x2 } from '../types';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import {
+  CursorPaginationParams,
+  CursorPaginatedResponse,
+  cursorPaginatedQuery,
+} from '../utils/cursor-pagination';
+
+// ───── Search & filter params for proposals ─────
+export interface ProposalSearchParams {
+  status?: 'draft' | 'pending' | 'approved' | 'rejected';
+  groupId?: number;
+  jornadaId?: number;
+}
 
 export class ProposalModel {
   static async create(groupId: number, jornadaId: number, proposedBy: number, title: string | null, totalMembers: number): Promise<number> {
@@ -212,5 +224,99 @@ export class ProposalModel {
       [userId, jornadaId]
     );
     return own as { match_number: number; prediction_1x2: Prediction1x2; home_score_prediction: number | null; away_score_prediction: number | null }[];
+  }
+
+  // ───── Cursor-based search with filters ─────
+
+  static async searchWithCursor(
+    filters: ProposalSearchParams,
+    pagination: CursorPaginationParams
+  ): Promise<CursorPaginatedResponse<QuinielaProposal & { proposer_name: string; jornada_name: string }>> {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters.groupId) {
+      conditions.push('qp.group_id = ?');
+      params.push(filters.groupId);
+    }
+    if (filters.jornadaId) {
+      conditions.push('qp.jornada_id = ?');
+      params.push(filters.jornadaId);
+    }
+    if (filters.status) {
+      conditions.push('qp.status = ?');
+      params.push(filters.status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const baseSql = `SELECT qp.*,
+      CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as proposer_name,
+      j.name as jornada_name
+     FROM quiniela_proposals qp
+     INNER JOIN users u ON qp.proposed_by = u.id
+     INNER JOIN jornadas j ON qp.jornada_id = j.id
+     ${whereClause}`;
+
+    const countSql = `SELECT COUNT(*) as total FROM quiniela_proposals qp ${whereClause}`;
+
+    return cursorPaginatedQuery<QuinielaProposal & { proposer_name: string; jornada_name: string }>(
+      baseSql,
+      countSql,
+      params,
+      pagination,
+      { alias: 'qp', timestampColumn: 'qp.created_at', idColumn: 'qp.id', sortDirection: 'DESC' },
+      'created_at',
+      'id'
+    );
+  }
+
+  /**
+   * Offset-based search with filters (backward compat).
+   */
+  static async searchWithOffset(
+    filters: ProposalSearchParams,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{ items: (QuinielaProposal & { proposer_name: string; jornada_name: string })[]; total: number }> {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters.groupId) {
+      conditions.push('qp.group_id = ?');
+      params.push(filters.groupId);
+    }
+    if (filters.jornadaId) {
+      conditions.push('qp.jornada_id = ?');
+      params.push(filters.jornadaId);
+    }
+    if (filters.status) {
+      conditions.push('qp.status = ?');
+      params.push(filters.status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (page - 1) * limit;
+
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT qp.*,
+        CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as proposer_name,
+        j.name as jornada_name
+       FROM quiniela_proposals qp
+       INNER JOIN users u ON qp.proposed_by = u.id
+       INNER JOIN jornadas j ON qp.jornada_id = j.id
+       ${whereClause}
+       ORDER BY qp.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    const [countRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM quiniela_proposals qp ${whereClause}`,
+      params
+    );
+    return {
+      items: rows as (QuinielaProposal & { proposer_name: string; jornada_name: string })[],
+      total: (countRows[0] as any).total,
+    };
   }
 }

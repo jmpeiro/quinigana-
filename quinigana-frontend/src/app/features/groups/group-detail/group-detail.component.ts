@@ -18,6 +18,7 @@ import { Group, GroupMember } from '../../../core/models/group.model';
 import { QuinielaProposal, GroupScoresResponse } from '../../../core/models/proposal.model';
 import { environment } from '../../../../environments/environment';
 import { GroupQuinielasComponent } from '../group-quinielas/group-quinielas.component';
+import { SearchFilterComponent, SearchFilterChange, FilterConfig } from '../../../shared/search-filter/search-filter.component';
 
 @Component({
   selector: 'app-group-detail',
@@ -35,6 +36,7 @@ import { GroupQuinielasComponent } from '../group-quinielas/group-quinielas.comp
     MatProgressSpinnerModule,
     MatTooltipModule,
     GroupQuinielasComponent,
+    SearchFilterComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -166,8 +168,13 @@ import { GroupQuinielasComponent } from '../group-quinielas/group-quinielas.comp
               <span class="tab-label-text">Propuestas</span>
             </ng-template>
             <div class="tab-content">
+              <app-search-filter
+                placeholder="Buscar propuesta..."
+                [filters]="proposalFilterConfigs"
+                (filterChange)="onProposalFilterChange($event)"
+              />
               <div class="proposals-list">
-                @for (proposal of proposals(); track proposal.id) {
+                @for (proposal of filteredProposals(); track proposal.id) {
                   <div class="proposal-item" (click)="goToProposal(proposal)" role="button" tabindex="0" (keydown.enter)="goToProposal(proposal)">
                     <div class="proposal-info">
                       <span class="proposal-title">{{ proposal.title || 'Propuesta #' + proposal.id }}</span>
@@ -748,6 +755,49 @@ export class GroupDetailComponent implements OnInit {
   hasMoreProposals = signal(false);
   loadingProposals = signal(false);
   scoresColumns = ['jornada', 'points', 'correct1x2', 'pleno'];
+
+  /** Proposal search & filter state */
+  private proposalSearchTerm = signal('');
+  private proposalStatusFilter = signal('');
+
+  proposalFilterConfigs: FilterConfig[] = [
+    {
+      key: 'status',
+      label: 'Estado',
+      options: [
+        { value: 'draft', label: 'Borrador' },
+        { value: 'pending', label: 'Pendiente' },
+        { value: 'approved', label: 'Aprobada' },
+        { value: 'rejected', label: 'Rechazada' },
+      ],
+    },
+  ];
+
+  filteredProposals = computed(() => {
+    let result = this.proposals();
+    const search = this.proposalSearchTerm().toLowerCase();
+    const status = this.proposalStatusFilter();
+
+    if (search) {
+      result = result.filter(p =>
+        (p.title || '').toLowerCase().includes(search) ||
+        (p.proposer_name || '').toLowerCase().includes(search) ||
+        (p.jornada_name || '').toLowerCase().includes(search) ||
+        p.id.toString().includes(search)
+      );
+    }
+
+    if (status) {
+      result = result.filter(p => p.status === status);
+    }
+
+    return result;
+  });
+
+  onProposalFilterChange(event: SearchFilterChange): void {
+    this.proposalSearchTerm.set(event.search);
+    this.proposalStatusFilter.set(event.filters['status'] || '');
+  }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');

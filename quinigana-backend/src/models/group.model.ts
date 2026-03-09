@@ -54,11 +54,37 @@ export class GroupModel {
     );
   }
 
+  /**
+   * Soft-delete a group. Sets is_active = FALSE.
+   * The group record is preserved for data integrity (scores, proposals, etc.)
+   * but excluded from all active queries.
+   */
   static async delete(id: number): Promise<void> {
     await pool.execute(
       'UPDATE `groups` SET is_active = FALSE WHERE id = ?',
       [id]
     );
+  }
+
+  /**
+   * Reactivate a soft-deleted group (admin action).
+   */
+  static async reactivate(id: number): Promise<void> {
+    await pool.execute(
+      'UPDATE `groups` SET is_active = TRUE WHERE id = ?',
+      [id]
+    );
+  }
+
+  /**
+   * Find a group even if soft-deleted (for admin purposes).
+   */
+  static async findByIdIncludeDeleted(id: number): Promise<Group | null> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT * FROM `groups` WHERE id = ?',
+      [id]
+    );
+    return rows.length > 0 ? (rows[0] as Group) : null;
   }
 
   static async addMember(groupId: number, userId: number, role: 'admin' | 'member' = 'member'): Promise<void> {

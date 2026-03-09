@@ -1,5 +1,7 @@
 import { StatsModel } from '../models/stats.model';
 import { PersonalStats, GroupHistoryEntry, JornadaDetailResult, GroupRankingEntry, PaginatedResponse } from '../types';
+import { CacheService } from './cache.service';
+import { CacheKey } from '../config/cache';
 
 export class StatsService {
   static async getPersonalStats(userId: number, seasonId?: number): Promise<PersonalStats> {
@@ -60,10 +62,15 @@ export class StatsService {
     };
   }
 
-  static async getGlobalRankings(page: number, limit: number, filters?: { seasonId?: number; groupId?: number }) {
-    const { items, total } = await StatsModel.getGlobalRankings(page, limit, filters);
+  static async getGlobalRankings(page: number, limit: number) {
+    // Cache global rankings (frequently accessed, expensive query)
+    const cacheKey = CacheService.buildKey(CacheKey.RANKINGS, 'global', page, limit);
+    const cached = CacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const { items, total } = await StatsModel.getGlobalRankings(page, limit);
     const totalPages = Math.ceil(total / limit);
-    return {
+    const result = {
       items: items.map((item: any) => ({
         groupId: item.group_id,
         groupName: item.group_name,
@@ -78,6 +85,9 @@ export class StatsService {
       limit,
       totalPages,
     };
+
+    CacheService.set(cacheKey, result);
+    return result;
   }
 
   static async getExportData(userId: number): Promise<string> {
@@ -91,18 +101,5 @@ export class StatsService {
 
   static async getPredictionsHeatmap(userId: number, limit: number = 10) {
     return StatsModel.getPredictionsHeatmap(userId, limit);
-  }
-
-  static async getStreakSummary(userId: number, seasonId?: number) {
-    const [streaks, series] = await Promise.all([
-      StatsModel.getStreaks(userId, seasonId),
-      StatsModel.getStreakSeries(userId, seasonId),
-    ]);
-
-    return {
-      currentStreak: streaks.currentStreak,
-      bestStreak: streaks.bestStreak,
-      series,
-    };
   }
 }

@@ -1,6 +1,20 @@
 ﻿import pool from '../config/database';
 import { Jornada, JornadaWithMatches, Match, MatchWithResult } from '../types';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import {
+  CursorPaginationParams,
+  CursorPaginatedResponse,
+  cursorPaginatedQuery,
+} from '../utils/cursor-pagination';
+
+// ───── Search & filter params for jornadas ─────
+export interface JornadaSearchParams {
+  search?: string;
+  status?: 'open' | 'closed' | 'finished';
+  season?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export class JornadaModel {
   static async create(name: string, season: string, jornadaNumber: number, deadline: string): Promise<number> {
@@ -34,16 +48,35 @@ export class JornadaModel {
     return rows as Jornada[];
   }
 
-  static async findForUser(userId: number): Promise<Jornada[]> {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT DISTINCT j.* FROM jornadas j
+  static async findForUser(
+    userId: number,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{ items: Jornada[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const baseSql = `FROM jornadas j
        INNER JOIN quiniela_proposals qp ON qp.jornada_id = j.id
        INNER JOIN group_members gm ON gm.group_id = qp.group_id
-       WHERE gm.user_id = ? AND qp.status = 'approved'
-       ORDER BY j.season DESC, j.jornada_number DESC`,
-      [userId]
-    );
-    return rows as Jornada[];
+       WHERE gm.user_id = ? AND qp.status = 'approved'`;
+
+    const [[countRow], [rows]] = await Promise.all([
+      pool.execute<RowDataPacket[]>(
+        `SELECT COUNT(DISTINCT j.id) as total ${baseSql}`,
+        [userId]
+      ),
+      pool.execute<RowDataPacket[]>(
+        `SELECT DISTINCT j.* ${baseSql}
+         ORDER BY j.season DESC, j.jornada_number DESC
+         LIMIT ? OFFSET ?`,
+        [userId, limit, offset]
+      ),
+    ]);
+
+    return {
+      items: rows as Jornada[],
+      total: (countRow[0] as RowDataPacket).total as number,
+    };
   }
 
   static async findActive(): Promise<Jornada | null> {
@@ -152,5 +185,117 @@ export class JornadaModel {
          AND EXISTS (SELECT 1 FROM matches WHERE jornada_id = j.id)`
     );
     return rows as Jornada[];
+  }
+
+  // ───── Cursor-based search with filters ─────
+
+  static async searchWithCursor(
+    filters: JornadaSearchParams,
+    pagination: CursorPaginationParams
+  ): Promise<CursorPaginatedResponse<Jornada>> {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters.status) {
+      conditions.push('j.status = ?');
+      params.push(filters.status);
+    }
+    if (filters.season) {
+      conditions.push('j.season = ?');
+      params.push(filters.season);
+    }
+    if (filters.dateFrom) {
+      conditions.push('j.deadline >= ?');
+      params.push(filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      conditions.push('j.deadline <= ?');
+      params.push(filters.dateTo);
+    }
+    if (filters.search) {
+      // Search by jornada name or by team name in matches
+      conditions.push(
+        `(j.name LIKE ? OR EXISTS (
+          SELECT 1 FROM matches m
+          WHERE m.jornada_id = j.id AND (m.home_team LIKE ? OR m.away_team LIKE ?)
+        ))`
+      );
+      const term = `%${filters.search}%`;
+      params.push(term, term, term);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const baseSql = `SELECT j.* FROM jornadas j ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM jornadas j ${whereClause}`;
+
+    return cursorPaginatedQuery<Jornada>(
+      baseSql,
+      countSql,
+      params,
+      pagination,
+      { alias: 'j', timestampColumn: 'j.created_at', idColumn: 'j.id', sortDirection: 'DESC' },
+      'created_at',
+      'id'
+    );
+  }
+
+  /**
+   * Offset-based search with filters (backward compat).
+   */
+  static async searchWithOffset(
+    filters: JornadaSearchParams,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{ items: Jornada[]; total: number }> {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters.status) {
+      conditions.push('j.status = ?');
+      params.push(filters.status);
+    }
+    if (filters.season) {
+      conditions.push('j.season = ?');
+      params.push(filters.season);
+    }
+    if (filters.dateFrom) {
+      conditions.push('j.deadline >= ?');
+      params.push(filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      conditions.push('j.deadline <= ?');
+      params.push(filters.dateTo);
+    }
+    if (filters.search) {
+      conditions.push(
+        `(j.name LIKE ? OR EXISTS (
+          SELECT 1 FROM matches m
+          WHERE m.jornada_id = j.id AND (m.home_team LIKE ? OR m.away_team LIKE ?)
+        ))`
+      );
+      const term = `%${filters.search}%`;
+      params.push(term, term, term);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (page - 1) * limit;
+
+    const [[countRow], [rows]] = await Promise.all([
+      pool.execute<RowDataPacket[]>(
+        `SELECT COUNT(*) as total FROM jornadas j ${whereClause}`,
+        params
+      ),
+      pool.execute<RowDataPacket[]>(
+        `SELECT j.* FROM jornadas j ${whereClause}
+         ORDER BY j.season DESC, j.jornada_number DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      ),
+    ]);
+
+    return {
+      items: rows as Jornada[],
+      total: (countRow[0] as RowDataPacket).total as number,
+    };
   }
 }

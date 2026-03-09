@@ -39,6 +39,32 @@ export class EmailService {
     });
   }
 
+  static async sendEmailVerification(email: string, name: string, token: string): Promise<void> {
+    const verifyUrl = `${env.frontendUrl}/auth/verify-email?token=${token}`;
+
+    const html = `
+      <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a2e; color: #f5f5f5; padding: 40px; border-radius: 12px;">
+        <h1 style="color: #e94560; margin-bottom: 24px;">QuiniGana</h1>
+        <h2 style="margin-bottom: 16px;">Verifica tu email</h2>
+        <p>Hola ${name},</p>
+        <p>Gracias por registrarte en QuiniGana. Por favor, verifica tu direccion de email haciendo clic en el boton:</p>
+        <a href="${verifyUrl}" style="display: inline-block; background: #e94560; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; margin: 24px 0; font-weight: 600;">
+          Verificar Email
+        </a>
+        <p style="color: #9e9e9e; font-size: 14px;">Este enlace expira en 24 horas. Si no creaste esta cuenta, puedes ignorar este email.</p>
+        <hr style="border: 1px solid #0f3460; margin: 24px 0;" />
+        <p style="color: #9e9e9e; font-size: 12px;">QuiniGana - Tu plataforma colaborativa de quinielas</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: env.email.from,
+      to: email,
+      subject: 'QuiniGana - Verifica tu email',
+      html,
+    });
+  }
+
   static async sendNotificationEmail(userId: number, subject: string, message: string): Promise<void> {
     const user = await UserModel.findById(userId);
     if (!user) return;

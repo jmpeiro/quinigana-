@@ -1,24 +1,34 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StatsService } from '../../../core/services/stats.service';
 import { GroupRankingEntry } from '../../../core/models/stats.model';
 import { environment } from '../../../../environments/environment';
+import { SearchFilterComponent, SearchFilterChange } from '../../../shared/search-filter/search-filter.component';
+import { ExportButtonComponent } from '../../../shared/export-button/export-button.component';
 
 @Component({
   selector: 'app-group-rankings',
   standalone: true,
-  imports: [MatIconModule, MatProgressSpinnerModule],
+  imports: [MatIconModule, MatProgressSpinnerModule, SearchFilterComponent, ExportButtonComponent],
   template: `
     <div class="rankings-container">
-      <h1 class="page-title">Rankings del Grupo</h1>
+      <div class="rankings-header">
+        <h1 class="page-title">Rankings del Grupo</h1>
+        <app-export-button exportType="rankings" [groupId]="groupId" />
+      </div>
+
+      <app-search-filter
+        placeholder="Buscar miembro..."
+        (filterChange)="onFilterChange($event)"
+      />
 
       @if (loading()) {
         <div class="loading"><mat-spinner diameter="36"></mat-spinner></div>
       } @else {
         <div class="rankings-list">
-          @for (entry of rankings(); track entry.userId; let i = $index) {
+          @for (entry of filteredRankings(); track entry.userId; let i = $index) {
             <div class="ranking-row" [class.top3]="i < 3">
               <div class="rank-badge" [class.gold]="i === 0" [class.silver]="i === 1" [class.bronze]="i === 2">
                 @if (i < 3) {
@@ -49,7 +59,8 @@ import { environment } from '../../../../environments/environment';
   `,
   styles: [`
     .rankings-container { max-width: 700px; margin: 0 auto; padding: 1.5rem; }
-    .page-title { color: #1e293b; font-size: 1.5rem; margin: 0 0 1.5rem; }
+    .rankings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .page-title { color: #1e293b; font-size: 1.5rem; margin: 0; }
     .loading { display: flex; justify-content: center; padding: 2rem; }
     .rankings-list { display: flex; flex-direction: column; gap: 0.5rem; }
     .ranking-row { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 10px; padding: 0.85rem 1rem; border: 1px solid #e2e8f0; }
@@ -78,6 +89,19 @@ export class GroupRankingsComponent implements OnInit {
 
   rankings = signal<GroupRankingEntry[]>([]);
   loading = signal(true);
+  groupId = 0;
+
+  /** Search state */
+  private searchTerm = signal('');
+
+  /** Computed filtered rankings */
+  filteredRankings = computed(() => {
+    const search = this.searchTerm().toLowerCase();
+    if (!search) return this.rankings();
+    return this.rankings().filter(entry =>
+      entry.userName.toLowerCase().includes(search)
+    );
+  });
 
   resolveAvatar(url: string | null): string | null {
     if (!url) return null;
@@ -86,9 +110,9 @@ export class GroupRankingsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const groupId = parseInt(this.route.snapshot.params['groupId']);
+    this.groupId = parseInt(this.route.snapshot.params['groupId']);
 
-    this.statsService.getGroupRankings(groupId).subscribe({
+    this.statsService.getGroupRankings(this.groupId).subscribe({
       next: (response) => {
         if (response.success && response.data) {
           this.rankings.set(response.data);
@@ -97,5 +121,9 @@ export class GroupRankingsComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  onFilterChange(event: SearchFilterChange): void {
+    this.searchTerm.set(event.search);
   }
 }

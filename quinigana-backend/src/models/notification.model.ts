@@ -1,6 +1,11 @@
 import pool from '../config/database';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { Notification, CreateNotificationDto } from '../types';
+import {
+  CursorPaginationParams,
+  CursorPaginatedResponse,
+  cursorPaginatedQuery,
+} from '../utils/cursor-pagination';
 
 export class NotificationModel {
   static async create(data: CreateNotificationDto): Promise<number> {
@@ -88,6 +93,26 @@ export class NotificationModel {
     await pool.execute(
       `UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE`,
       [userId]
+    );
+  }
+
+  // ───── Cursor-based pagination ─────
+
+  static async findByUserWithCursor(
+    userId: number,
+    pagination: CursorPaginationParams
+  ): Promise<CursorPaginatedResponse<Notification>> {
+    const baseSql = `SELECT * FROM notifications n WHERE n.user_id = ?`;
+    const countSql = `SELECT COUNT(*) as total FROM notifications n WHERE n.user_id = ?`;
+
+    return cursorPaginatedQuery<Notification>(
+      baseSql,
+      countSql,
+      [userId],
+      pagination,
+      { alias: 'n', timestampColumn: 'n.created_at', idColumn: 'n.id', sortDirection: 'DESC' },
+      'created_at',
+      'id'
     );
   }
 }

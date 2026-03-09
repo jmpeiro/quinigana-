@@ -2,9 +2,11 @@ import { Request, Response } from 'express';
 import { JornadaService } from '../services/jornada.service';
 import { ScoreService } from '../services/score.service';
 import { GamificationService } from '../services/gamification.service';
-import { JornadaModel } from '../models/jornada.model';
+import { JornadaModel, JornadaSearchParams } from '../models/jornada.model';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { parseId } from '../utils/parse-id.util';
+import { parsePagination } from '../utils/pagination';
+import { parseCursorPagination } from '../utils/cursor-pagination';
 
 export class JornadaController {
   // Admin endpoints
@@ -56,8 +58,35 @@ export class JornadaController {
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.authUser!.userId;
-      const jornadas = await JornadaService.getAllForUser(userId);
-      sendSuccess(res, jornadas);
+
+      // Build search/filter params
+      const filters: JornadaSearchParams = {};
+      if (req.query.search) filters.search = req.query.search as string;
+      if (req.query.status) filters.status = req.query.status as 'open' | 'closed' | 'finished';
+      if (req.query.season) filters.season = req.query.season as string;
+      if (req.query.dateFrom) filters.dateFrom = req.query.dateFrom as string;
+      if (req.query.dateTo) filters.dateTo = req.query.dateTo as string;
+
+      const hasFilters = Object.keys(filters).length > 0;
+
+      // If cursor param is present, use cursor-based pagination
+      if (req.query.cursor || hasFilters) {
+        const cursorParams = parseCursorPagination(req.query);
+        const data = await JornadaModel.searchWithCursor(filters, cursorParams);
+        sendSuccess(res, data);
+        return;
+      }
+
+      // Fallback: offset-based pagination (backward compat)
+      // If explicit page/limit params, return paginated; otherwise return plain array
+      if (req.query.page || req.query.limit) {
+        const { page, limit } = parsePagination(req.query);
+        const data = await JornadaService.getAllForUser(userId, page, limit);
+        sendSuccess(res, data);
+      } else {
+        const data = await JornadaService.getAllForUser(userId, 1, 1000);
+        sendSuccess(res, data.items || data);
+      }
     } catch {
       sendError(res, 'INTERNAL_ERROR', 'Failed to fetch jornadas', 500);
     }

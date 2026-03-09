@@ -1,10 +1,14 @@
 import { LeagueModel } from '../models/league.model';
 import { NotificationService } from './notification.service';
+import { withTransaction } from '../config/database';
+import { CacheService } from './cache.service';
+import { CacheKey } from '../config/cache';
 
 export class LeagueService {
   /**
    * Process league standings after a jornada is scored.
    * Updates user standings based on their scores.
+   * Wrapped in a transaction so all standing updates are atomic.
    */
   static async processJornadaScores(
     jornadaId: number,
@@ -22,32 +26,49 @@ export class LeagueService {
     if (season.start_jornada_id && jornadaId < season.start_jornada_id) return;
     if (season.end_jornada_id && jornadaId > season.end_jornada_id) return;
 
-    const divisions = await LeagueModel.getAllDivisions();
     const affectedDivisions = new Set<number>();
 
-    for (const userScore of userScores) {
-      // Ensure user is in the season
-      const standing = await LeagueModel.ensureUserInSeason(
-        userScore.userId,
-        season.id
-      );
+    await withTransaction(async (_conn) => {
+      for (const userScore of userScores) {
+        // Ensure user is in the season
+        const standing = await LeagueModel.ensureUserInSeason(
+          userScore.userId,
+          season.id
+        );
 
-      // Update their points
-      await LeagueModel.updateStandingPoints(
-        userScore.userId,
-        season.id,
-        userScore.points,
-        userScore.correct1x2,
-        userScore.correctPleno
-      );
+        // Update their points
+        await LeagueModel.updateStandingPoints(
+          userScore.userId,
+          season.id,
+          userScore.points,
+          userScore.correct1x2,
+          userScore.correctPleno
+        );
 
-      affectedDivisions.add(standing.division_id);
-    }
+        affectedDivisions.add(standing.division_id);
+      }
 
-    // Recalculate positions for affected divisions
-    for (const divisionId of affectedDivisions) {
-      await LeagueModel.recalculatePositions(season.id, divisionId);
-    }
+      // Recalculate positions for affected divisions
+      for (const divisionId of affectedDivisions) {
+        await LeagueModel.recalculatePositions(season.id, divisionId);
+      }
+    });
+
+    // Invalidate league standings cache
+    CacheService.invalidateByPrefix(CacheKey.LEAGUE_STANDINGS);
+  }
+
+  /**
+   * End season: process all promotions and relegations inside a transaction.
+   */
+  static async processSeasonEnd(seasonId: number): Promise<void> {
+    await withTransaction(async (_conn) => {
+      // Process promotions/relegations and mark season as completed
+      await LeagueModel.processSeasonEnd(seasonId);
+      await LeagueModel.updateSeasonStatus(seasonId, 'completed');
+    });
+
+    CacheService.invalidateByPrefix(CacheKey.LEAGUE_STANDINGS);
   }
 
   /**
