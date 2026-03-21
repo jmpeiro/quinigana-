@@ -13,6 +13,7 @@ interface ServerToClientEvents {
   'live-scores:update': (data: { jornadaId: number; matches: any[] }) => void;
   'live-scores:error': (data: { message: string }) => void;
   'scraper:error': (data: { jornadaId: number; message: string; timestamp: string }) => void;
+  'standings:update': (data: any[]) => void;
 }
 
 interface ClientToServerEvents {
@@ -211,6 +212,10 @@ export class SocketService {
     } catch {
       // Non-critical: don't break the connection if admin check fails
     }
+  }
+
+  emitStandingsUpdate(standings: any[]): void {
+    this.io.emit('standings:update', standings);
   }
 
   shutdown(): void {

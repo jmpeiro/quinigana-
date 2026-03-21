@@ -26,12 +26,18 @@
         </div>
       </div>
 
-      @if (u.avatar_url) {
-        <button mat-button class="remove-avatar-btn" (click)="removeAvatar()" [disabled]="isUploadingAvatar()">
-          <mat-icon>delete</mat-icon>
-          Remove avatar
+      <div class="avatar-actions-row">
+        <button mat-stroked-button class="generate-avatar-btn" (click)="openAvatarPicker()" [disabled]="isUploadingAvatar()">
+          <mat-icon>auto_awesome</mat-icon>
+          Generar Avatar
         </button>
-      }
+        @if (u.avatar_url) {
+          <button mat-button class="remove-avatar-btn" (click)="removeAvatar()" [disabled]="isUploadingAvatar()">
+            <mat-icon>delete</mat-icon>
+            Remove avatar
+          </button>
+        }
+      </div>
 
       <mat-divider></mat-divider>
 
@@ -149,6 +155,24 @@
           }
         </div>
       }
+
+      <!-- Idioma -->
+      <mat-divider></mat-divider>
+      <div class="section theme-section">
+        <div class="theme-row">
+          <div class="theme-info">
+            <mat-icon>language</mat-icon>
+            <div>
+              <h4>Idioma</h4>
+              <p>Selecciona el idioma de la aplicacion</p>
+            </div>
+          </div>
+          <div class="lang-buttons">
+            <button mat-stroked-button class="lang-btn" [class.active]="currentLang() === 'es'" (click)="setLang('es')">ES</button>
+            <button mat-stroked-button class="lang-btn" [class.active]="currentLang() === 'en'" (click)="setLang('en')">EN</button>
+          </div>
+        </div>
+      </div>
 
       <mat-divider></mat-divider>
 

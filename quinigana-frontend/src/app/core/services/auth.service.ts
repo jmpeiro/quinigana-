@@ -96,6 +96,18 @@ export class AuthService {
     );
   }
 
+  async verifyEmail(token: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post<ApiResponse>(`${environment.apiUrl}/auth/verify-email`, { token })
+    );
+  }
+
+  async resendVerification(email: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post<ApiResponse>(`${environment.apiUrl}/auth/verify-email/resend`, { email })
+    );
+  }
+
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     await firstValueFrom(
       this.http.post<ApiResponse>(`${environment.apiUrl}/auth/password/change`, { currentPassword, newPassword }, { withCredentials: true })

@@ -71,10 +71,6 @@ app.get('/api/v1/uploads/:filename', authMiddleware, (req, res) => {
   });
 });
 
-// Legacy static file serving for backwards compatibility (kept for existing clients)
-// Will be removed in a future version - use /api/v1/uploads/:filename instead
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
 // API routes — versioned under /api/v1
 app.use('/api/v1', v1Routes);
 

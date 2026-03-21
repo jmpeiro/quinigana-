@@ -45,7 +45,5 @@ router.get('/', authMiddleware, DashboardController.getDashboard);
  *         description: Unauthorized - invalid or missing token
  */
 router.get('/standings', authMiddleware, DashboardController.getStandings);
-router.get('/standings/debug', authMiddleware, DashboardController.getStandingsDebug);
-router.get('/test-db', authMiddleware, DashboardController.testDb);
 
 export default router;

@@ -19,6 +19,7 @@ import { QuinielaProposal, GroupScoresResponse } from '../../../core/models/prop
 import { environment } from '../../../../environments/environment';
 import { GroupQuinielasComponent } from '../group-quinielas/group-quinielas.component';
 import { SearchFilterComponent, SearchFilterChange, FilterConfig } from '../../../shared/search-filter/search-filter.component';
+import { ShareButtonComponent } from '../../../shared/components/share-button/share-button.component';
 
 @Component({
   selector: 'app-group-detail',
@@ -37,6 +38,7 @@ import { SearchFilterComponent, SearchFilterChange, FilterConfig } from '../../.
     MatTooltipModule,
     GroupQuinielasComponent,
     SearchFilterComponent,
+    ShareButtonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -74,6 +76,9 @@ import { SearchFilterComponent, SearchFilterChange, FilterConfig } from '../../.
               </div>
             </div>
             <div class="group-actions">
+              <app-share-button
+                [text]="'Unete a mi grupo ' + group()!.name + ' en QuiniGana!'"
+                [url]="getGroupShareUrl()" />
               <a mat-stroked-button [routerLink]="['/groups', groupId(), 'activity']">
                 <mat-icon>history</mat-icon>
                 Actividad
@@ -729,6 +734,10 @@ export class GroupDetailComponent implements OnInit {
 
   groupId = signal<number>(0);
   group = signal<Group | null>(null);
+
+  getGroupShareUrl(): string {
+    return `${window.location.origin}/groups/${this.groupId()}`;
+  }
   members = signal<GroupMember[]>([]);
   proposals = signal<QuinielaProposal[]>([]);
   scores = signal<GroupScoresResponse | null>(null);

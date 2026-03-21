@@ -9,10 +9,16 @@ import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { requestIdInterceptor } from './core/interceptors/request-id.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { AuthService } from './core/services/auth.service';
+import { TranslateService } from './core/services/translate.service';
 
 function initializeAuth(): () => Promise<void> {
   const authService = inject(AuthService);
   return () => authService.tryAutoLogin();
+}
+
+function initializeTranslations(): () => Promise<void> {
+  const translateService = inject(TranslateService);
+  return () => translateService.init();
 }
 
 export const appConfig: ApplicationConfig = {
@@ -28,6 +34,11 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_INITIALIZER,
       useFactory: initializeAuth,
+      multi: true,
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeTranslations,
       multi: true,
     },
   ],

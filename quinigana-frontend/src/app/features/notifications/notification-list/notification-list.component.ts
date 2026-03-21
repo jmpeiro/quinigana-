@@ -3,8 +3,10 @@ import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
 import { NotificationService } from '../../../core/services/notification.service';
 import { AppNotification } from '../../../core/models/notification.model';
+import { NotificationSettingsComponent } from '../notification-settings/notification-settings.component';
 
 @Component({
   selector: 'app-notification-list',
@@ -14,12 +16,17 @@ import { AppNotification } from '../../../core/models/notification.model';
     <div class="notif-container">
       <div class="notif-page-header">
         <h1 class="page-title">Notificaciones</h1>
-        @if (notificationService.unreadCount() > 0) {
-          <button mat-button class="mark-all-btn" (click)="markAllRead()">
-            <mat-icon>done_all</mat-icon>
-            Marcar todas como leidas
+        <div class="header-actions">
+          <button mat-icon-button class="settings-btn" (click)="openSettings()" title="Configuracion">
+            <mat-icon>tune</mat-icon>
           </button>
-        }
+          @if (notificationService.unreadCount() > 0) {
+            <button mat-button class="mark-all-btn" (click)="markAllRead()">
+              <mat-icon>done_all</mat-icon>
+              Marcar todas como leidas
+            </button>
+          }
+        </div>
       </div>
 
       @if (loading()) {
@@ -84,6 +91,7 @@ import { AppNotification } from '../../../core/models/notification.model';
 export class NotificationListComponent implements OnInit {
   notificationService = inject(NotificationService);
   private router = inject(Router);
+  private dialog = inject(MatDialog);
 
   notifications = signal<AppNotification[]>([]);
   loading = signal(true);
@@ -122,6 +130,13 @@ export class NotificationListComponent implements OnInit {
     }
     const route = this.resolveRoute(notif);
     if (route) this.router.navigateByUrl(route);
+  }
+
+  openSettings(): void {
+    this.dialog.open(NotificationSettingsComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+    });
   }
 
   markAllRead(): void {

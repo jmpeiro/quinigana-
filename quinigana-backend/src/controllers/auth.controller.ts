@@ -5,6 +5,7 @@ import { EmailService } from '../services/email.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { env } from '../config/environment';
 import { User } from '../types';
+import logger from '../config/logger';
 
 const COOKIE_MAX_AGE_SHORT = 24 * 60 * 60 * 1000; // 1 day (session)
 const COOKIE_MAX_AGE_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days (remember me)
@@ -138,7 +139,7 @@ export class AuthController {
             resetData.token
           );
         } catch (emailError) {
-          console.error('Failed to send reset email:', emailError);
+          logger.error({ error: emailError }, 'Failed to send reset email');
         }
       }
 
@@ -199,7 +200,7 @@ export class AuthController {
       if (error.statusCode) {
         sendError(res, error.code, error.message, error.statusCode);
       } else {
-        console.error('Verify email error:', error);
+        logger.error({ error }, 'Verify email error');
         sendError(res, 'INTERNAL_ERROR', 'Failed to verify email', 500);
       }
     }
@@ -217,7 +218,7 @@ export class AuthController {
       if (error.statusCode) {
         sendError(res, error.code, error.message, error.statusCode);
       } else {
-        console.error('Resend verification email error:', error);
+        logger.error({ error }, 'Resend verification email error');
         sendError(res, 'INTERNAL_ERROR', 'Failed to resend verification email', 500);
       }
     }

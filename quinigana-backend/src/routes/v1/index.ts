@@ -19,6 +19,11 @@ import groupQuinielaRoutes from '../group-quiniela.routes';
 import healthRoutes from '../health.routes';
 import exportRoutes from '../export.routes';
 import proposalSearchRoutes from '../proposal-search.routes';
+import shareRoutes from '../share.routes';
+import publicApiRoutes from '../public-api.routes';
+import searchRoutes from '../search.routes';
+import predictionAnalysisRoutes from '../prediction-analysis.routes';
+import tournamentRoutes from '../tournament.routes';
 
 const router = Router();
 
@@ -41,6 +46,11 @@ router.use('/seasons', seasonRoutes);
 router.use('/challenges', challengeRoutes);
 router.use('/leagues', leagueRoutes);
 router.use('/group-quinielas', groupQuinielaRoutes);
+router.use('/share', shareRoutes);
+router.use('/public', publicApiRoutes);
+router.use('/search', searchRoutes);
+router.use('/predictions', predictionAnalysisRoutes);
+router.use('/tournaments', tournamentRoutes);
 // Proposals and scores are nested under /groups
 router.use('/groups', proposalRoutes);
 

@@ -28,13 +28,32 @@
   ],
   "dataGroups": [
     {
-      "name": "api",
+      "name": "api-fresh",
+      "urls": ["/api/dashboard", "/api/jornadas", "/api/groups", "/api/notifications"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 50,
+        "maxAge": "1h",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "api-cache",
+      "urls": ["/api/stats/**", "/api/gamification/**", "/api/standings/**"],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 100,
+        "maxAge": "6h"
+      }
+    },
+    {
+      "name": "api-other",
       "urls": ["/api/**"],
       "cacheConfig": {
         "strategy": "freshness",
-        "maxSize": 100,
-        "maxAge": "1h",
-        "timeout": "5s"
+        "maxSize": 50,
+        "maxAge": "30m",
+        "timeout": "8s"
       }
     }
   ]

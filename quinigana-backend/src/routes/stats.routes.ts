@@ -215,4 +215,47 @@ router.get('/groups/:id/rankings', StatsController.getGroupRankings);
  */
 router.get('/global-rankings', StatsController.getGlobalRankings);
 
+// Comparative stats
+router.get('/me/comparative', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.authUser!.userId;
+    const pool = (await import('../config/database')).default;
+    const [allScores]: any = await pool.execute('SELECT user_id, SUM(points) as total FROM scores GROUP BY user_id ORDER BY total DESC');
+    const totalUsers = allScores.length;
+    const userIndex = allScores.findIndex((r: any) => r.user_id === userId);
+    const globalRank = userIndex >= 0 ? userIndex + 1 : totalUsers;
+    const percentile = totalUsers > 0 ? Math.round(((totalUsers - globalRank) / totalUsers) * 1000) / 10 : 0;
+
+    const [predStats]: any = await pool.execute(
+      `SELECT pp.prediction_1x2, COUNT(*) as total,
+        SUM(CASE WHEN (pp.prediction_1x2='1' AND m.home_score>m.away_score) OR (pp.prediction_1x2='x' AND m.home_score=m.away_score) OR (pp.prediction_1x2='2' AND m.home_score<m.away_score) THEN 1 ELSE 0 END) as correct
+       FROM proposal_predictions pp JOIN matches m ON m.id=pp.match_id JOIN quiniela_proposals qp ON qp.id=pp.proposal_id
+       WHERE qp.proposed_by=? AND m.status='finished' GROUP BY pp.prediction_1x2`, [userId]);
+    const acc: any = { home: 0, draw: 0, away: 0 };
+    for (const row of predStats) {
+      const pct = row.total > 0 ? Math.round((Number(row.correct) / Number(row.total)) * 100) : 0;
+      if (row.prediction_1x2 === '1') acc.home = pct;
+      else if (row.prediction_1x2 === 'x') acc.draw = pct;
+      else acc.away = pct;
+    }
+
+    const [communityStreaks]: any = await pool.execute('SELECT AVG(streak) as avg_streak, MAX(streak) as best_streak FROM gamification_profiles');
+    const [userStreak]: any = await pool.execute('SELECT streak FROM gamification_profiles WHERE user_id = ?', [userId]);
+
+    const { sendSuccess } = await import('../utils/response.util');
+    sendSuccess(res, {
+      globalRank, totalUsers, percentile,
+      predictionTypeAccuracy: acc,
+      streakComparison: {
+        yourBest: userStreak[0]?.streak || 0,
+        communityAverage: Number(communityStreaks[0]?.avg_streak || 0),
+        communityBest: communityStreaks[0]?.best_streak || 0,
+      }
+    });
+  } catch {
+    const { sendError } = await import('../utils/response.util');
+    sendError(res, 'INTERNAL_ERROR', 'Error al obtener estadisticas comparativas', 500);
+  }
+});
+
 export default router;

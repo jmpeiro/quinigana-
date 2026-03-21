@@ -23,12 +23,16 @@ import { ErrorCardComponent } from '../../shared/components/error-card/error-car
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { XpBarComponent } from '../../shared/components/xp-bar/xp-bar.component';
 import { StandingsComponent } from '../../shared/components/standings/standings.component';
+import { OnboardingComponent } from '../../shared/components/onboarding/onboarding.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, NgApexchartsModule, NotificationBellComponent, ErrorCardComponent, SkeletonComponent, XpBarComponent, StandingsComponent, DatePipe],
+  imports: [MatButtonModule, MatIconModule, NgApexchartsModule, NotificationBellComponent, ErrorCardComponent, SkeletonComponent, XpBarComponent, StandingsComponent, DatePipe, OnboardingComponent],
   template: `
+    @if (showOnboarding) {
+      <app-onboarding (completed)="showOnboarding = false" />
+    }
     <div class="page">
       <header class="topbar">
         <h1 class="page-title">Dashboard</h1>
@@ -364,7 +368,7 @@ import { StandingsComponent } from '../../shared/components/standings/standings.
                     </div>
                     <div class="row-right">
                       <span class="row-pts">{{ r.totalPoints }}</span>
-                      <span class="row-sub">{{ r.correct1x2 }}·1X2 {{ r.correctPleno }}·P</span>
+                      <span class="row-sub">{{ r.correct1x2 }}ï¿½1X2 {{ r.correctPleno }}ï¿½P</span>
                     </div>
                   </div>
                 }
@@ -1174,6 +1178,7 @@ import { StandingsComponent } from '../../shared/components/standings/standings.
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+  showOnboarding = OnboardingComponent.shouldShow();
   private authService = inject(AuthService);
   private dashboardService = inject(DashboardService);
   private statsService = inject(StatsService);

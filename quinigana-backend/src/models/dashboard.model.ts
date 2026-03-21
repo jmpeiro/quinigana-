@@ -1,5 +1,6 @@
 import pool from '../config/database';
 import { RowDataPacket } from 'mysql2';
+import logger from '../config/logger';
 
 export class DashboardModel {
   static async getActiveJornada(userId: number): Promise<{
@@ -10,7 +11,6 @@ export class DashboardModel {
     status: string;
   } | null> {
     try {
-      console.log('[DASHBOARD MODEL] Querying active jornada for user:', userId);
       // Only return jornada if user belongs to a group with an approved proposal for it
       // Show both 'open' and 'closed' jornadas (hide only 'finished')
       const [rows] = await pool.execute<RowDataPacket[]>(
@@ -29,7 +29,6 @@ export class DashboardModel {
          LIMIT 1`,
         [userId]
       );
-      console.log('[DASHBOARD MODEL] Active jornada query result:', rows.length, 'rows');
       if (rows.length === 0) return null;
       const row = rows[0];
       return {
@@ -40,7 +39,7 @@ export class DashboardModel {
         status: row.status,
       };
     } catch (error) {
-      console.error('[DASHBOARD MODEL] Error in getActiveJornada:', error);
+      logger.error({ error }, 'Error in getActiveJornada');
       throw error;
     }
   }
@@ -53,7 +52,6 @@ export class DashboardModel {
     memberCount: number;
   }>> {
     try {
-      console.log('[DASHBOARD MODEL] Querying user groups for user:', userId);
       const [groups] = await pool.execute<RowDataPacket[]>(
         `SELECT g.id, g.name,
                 COALESCE(SUM(gs.total_points), 0) as totalPoints,
@@ -66,8 +64,6 @@ export class DashboardModel {
          ORDER BY totalPoints DESC`,
         [userId]
       );
-      console.log('[DASHBOARD MODEL] User groups query result:', groups.length, 'groups');
-
       return groups.map((row, index) => ({
         id: row.id,
         name: row.name,
@@ -76,7 +72,7 @@ export class DashboardModel {
         memberCount: row.memberCount,
       }));
     } catch (error) {
-      console.error('[DASHBOARD MODEL] Error in getUserGroupsWithScores:', error);
+      logger.error({ error }, 'Error in getUserGroupsWithScores');
       throw error;
     }
   }
@@ -90,7 +86,6 @@ export class DashboardModel {
     groupName: string;
   }>> {
     try {
-      console.log('[DASHBOARD MODEL] Querying latest results for user:', userId, 'limit:', limit);
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT gs.jornada_id as jornadaId, j.name as jornadaName,
                 gs.total_points as totalPoints, gs.correct_1x2 as correct1x2,
@@ -104,8 +99,6 @@ export class DashboardModel {
          LIMIT ?`,
         [userId, limit]
       );
-      console.log('[DASHBOARD MODEL] Latest results query result:', rows.length, 'results');
-
       return rows.map(row => ({
         jornadaId: row.jornadaId,
         jornadaName: row.jornadaName,
@@ -115,7 +108,7 @@ export class DashboardModel {
         groupName: row.groupName,
       }));
     } catch (error) {
-      console.error('[DASHBOARD MODEL] Error in getLatestResults:', error);
+      logger.error({ error }, 'Error in getLatestResults');
       throw error;
     }
   }
@@ -128,9 +121,6 @@ export class DashboardModel {
     jornadasPlayed: number;
   }> {
     try {
-      console.log('[DASHBOARD MODEL] Querying user stats for user:', userId);
-
-      console.log('[DASHBOARD MODEL] Query 1/3: Stats from group_scores...');
       const [statsRows] = await pool.execute<RowDataPacket[]>(
         `SELECT
            COALESCE(SUM(gs.total_points), 0) as totalPoints,
@@ -142,9 +132,6 @@ export class DashboardModel {
          WHERE gm.user_id = ?`,
         [userId]
       );
-      console.log('[DASHBOARD MODEL] Stats query result:', statsRows[0]);
-
-      console.log('[DASHBOARD MODEL] Query 2/3: Group count...');
       const [groupCountRows] = await pool.execute<RowDataPacket[]>(
         `SELECT COUNT(*) as groupCount
          FROM group_members gm
@@ -152,9 +139,6 @@ export class DashboardModel {
          WHERE gm.user_id = ? AND g.is_active = TRUE`,
         [userId]
       );
-      console.log('[DASHBOARD MODEL] Group count query result:', groupCountRows[0]);
-
-      console.log('[DASHBOARD MODEL] Query 3/3: Total predictions...');
       // Calculate total predictions to get accuracy
       const [predCountRows] = await pool.execute<RowDataPacket[]>(
         `SELECT COUNT(*) as totalPredictions
@@ -164,8 +148,6 @@ export class DashboardModel {
          WHERE gm.user_id = ? AND qp.status = 'approved'`,
         [userId]
       );
-      console.log('[DASHBOARD MODEL] Predictions count query result:', predCountRows[0]);
-
       const stats = statsRows[0];
       const totalPredictions = predCountRows[0]?.totalPredictions || 0;
 
@@ -181,10 +163,9 @@ export class DashboardModel {
         jornadasPlayed: Number(stats.jornadasPlayed),
       };
 
-      console.log('[DASHBOARD MODEL] User stats computed successfully:', result);
       return result;
     } catch (error) {
-      console.error('[DASHBOARD MODEL] Error in getUserStats:', error);
+      logger.error({ error }, 'Error in getUserStats');
       throw error;
     }
   }

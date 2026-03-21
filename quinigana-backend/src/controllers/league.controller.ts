@@ -3,6 +3,7 @@ import { LeagueModel } from '../models/league.model';
 import { LeagueService } from '../services/league.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { parsePagination } from '../utils/pagination';
+import logger from '../config/logger';
 
 export class LeagueController {
   // Get all divisions
@@ -11,7 +12,7 @@ export class LeagueController {
       const divisions = await LeagueModel.getAllDivisions();
       sendSuccess(res, divisions);
     } catch (err) {
-      console.error('Get divisions error:', err);
+      logger.error({ error: err }, 'Get divisions error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener divisiones', 500);
     }
   }
@@ -26,7 +27,7 @@ export class LeagueController {
       }
       sendSuccess(res, season);
     } catch (err) {
-      console.error('Get active season error:', err);
+      logger.error({ error: err }, 'Get active season error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener temporada', 500);
     }
   }
@@ -52,7 +53,7 @@ export class LeagueController {
 
       sendSuccess(res, profile);
     } catch (err) {
-      console.error('Get my league profile error:', err);
+      logger.error({ error: err }, 'Get my league profile error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener perfil de liga', 500);
     }
   }
@@ -92,7 +93,7 @@ export class LeagueController {
         totalPages: Math.ceil(total / limit),
       });
     } catch (err) {
-      console.error('Get division standings error:', err);
+      logger.error({ error: err }, 'Get division standings error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener clasificacion', 500);
     }
   }
@@ -104,7 +105,7 @@ export class LeagueController {
       const history = await LeagueModel.getUserHistory(userId);
       sendSuccess(res, history);
     } catch (err) {
-      console.error('Get league history error:', err);
+      logger.error({ error: err }, 'Get league history error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener historial', 500);
     }
   }
@@ -129,7 +130,7 @@ export class LeagueController {
       const season = await LeagueModel.getSeasonById(id);
       sendSuccess(res, season, 'Temporada de liga creada', 201);
     } catch (err) {
-      console.error('Create league season error:', err);
+      logger.error({ error: err }, 'Create league season error');
       sendError(res, 'INTERNAL_ERROR', 'Error al crear temporada', 500);
     }
   }
@@ -154,7 +155,7 @@ export class LeagueController {
       await LeagueModel.updateSeasonStatus(seasonId, 'active');
       sendSuccess(res, { message: 'Temporada activada' });
     } catch (err) {
-      console.error('Activate season error:', err);
+      logger.error({ error: err }, 'Activate season error');
       sendError(res, 'INTERNAL_ERROR', 'Error al activar temporada', 500);
     }
   }
@@ -180,7 +181,7 @@ export class LeagueController {
 
       sendSuccess(res, { message: 'Temporada finalizada, ascensos/descensos procesados' });
     } catch (err) {
-      console.error('End season error:', err);
+      logger.error({ error: err }, 'End season error');
       sendError(res, 'INTERNAL_ERROR', 'Error al finalizar temporada', 500);
     }
   }
@@ -202,7 +203,7 @@ export class LeagueController {
       await LeagueModel.initializeNewSeason(newSeasonId, previousSeasonId);
       sendSuccess(res, { message: 'Temporada inicializada con datos de la anterior' });
     } catch (err) {
-      console.error('Initialize season error:', err);
+      logger.error({ error: err }, 'Initialize season error');
       sendError(res, 'INTERNAL_ERROR', 'Error al inicializar temporada', 500);
     }
   }

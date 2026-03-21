@@ -6,6 +6,7 @@ import { NotificationService } from '../services/notification.service';
 import { ChallengeAutoService } from '../services/challenge-auto.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { CreateChallengeDto } from '../types';
+import logger from '../config/logger';
 
 export class ChallengeController {
   // POST /challenges - Create a new challenge
@@ -58,7 +59,7 @@ export class ChallengeController {
 
       sendSuccess(res, challenge, 'Reto enviado', 201);
     } catch (err) {
-      console.error('Create challenge error:', err);
+      logger.error({ error: err }, 'Create challenge error');
       sendError(res, 'INTERNAL_ERROR', 'Error al crear el reto', 500);
     }
   }
@@ -87,7 +88,7 @@ export class ChallengeController {
       const details = await ChallengeService.getChallengeById(challengeId);
       sendSuccess(res, details);
     } catch (err) {
-      console.error('Get challenge error:', err);
+      logger.error({ error: err }, 'Get challenge error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener el reto', 500);
     }
   }
@@ -137,7 +138,7 @@ export class ChallengeController {
 
       sendSuccess(res, { message: 'Reto aceptado' });
     } catch (err) {
-      console.error('Accept challenge error:', err);
+      logger.error({ error: err }, 'Accept challenge error');
       sendError(res, 'INTERNAL_ERROR', 'Error al aceptar el reto', 500);
     }
   }
@@ -182,7 +183,7 @@ export class ChallengeController {
         message: result.message,
       });
     } catch (err) {
-      console.error('Submit predictions error:', err);
+      logger.error({ error: err }, 'Submit predictions error');
       sendError(res, 'INTERNAL_ERROR', 'Error al verificar predicciones del reto', 500);
     }
   }
@@ -198,7 +199,7 @@ export class ChallengeController {
       const result = await ChallengeModel.getUserChallengeHistory(userId, cursor, limit, direction);
       sendSuccess(res, result);
     } catch (err) {
-      console.error('Get challenge history error:', err);
+      logger.error({ error: err }, 'Get challenge history error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener el historial de retos', 500);
     }
   }
@@ -227,7 +228,7 @@ export class ChallengeController {
         totalPages: Math.ceil(total / limit),
       });
     } catch (err) {
-      console.error('Get challenges error:', err);
+      logger.error({ error: err }, 'Get challenges error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener los retos', 500);
     }
   }
@@ -239,7 +240,7 @@ export class ChallengeController {
       const challenges = await ChallengeModel.getPendingChallengesForUser(userId);
       sendSuccess(res, challenges);
     } catch (err) {
-      console.error('Get pending challenges error:', err);
+      logger.error({ error: err }, 'Get pending challenges error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener retos pendientes', 500);
     }
   }
@@ -271,7 +272,7 @@ export class ChallengeController {
       await ChallengeService.declineChallenge(challengeId);
       sendSuccess(res, { message: 'Reto rechazado' });
     } catch (err) {
-      console.error('Reject challenge error:', err);
+      logger.error({ error: err }, 'Reject challenge error');
       sendError(res, 'INTERNAL_ERROR', 'Error al rechazar el reto', 500);
     }
   }
@@ -301,7 +302,7 @@ export class ChallengeController {
       await ChallengeService.cancelChallenge(challengeId);
       sendSuccess(res, { message: 'Reto cancelado' });
     } catch (err) {
-      console.error('Cancel challenge error:', err);
+      logger.error({ error: err }, 'Cancel challenge error');
       sendError(res, 'INTERNAL_ERROR', 'Error al cancelar el reto', 500);
     }
   }
@@ -313,7 +314,7 @@ export class ChallengeController {
       const rivalries = await ChallengeModel.getUserRivalries(userId);
       sendSuccess(res, rivalries);
     } catch (err) {
-      console.error('Get rivalries error:', err);
+      logger.error({ error: err }, 'Get rivalries error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener rivalidades', 500);
     }
   }
@@ -332,7 +333,7 @@ export class ChallengeController {
 
       sendSuccess(res, { stats, recent });
     } catch (err) {
-      console.error('Get head to head error:', err);
+      logger.error({ error: err }, 'Get head to head error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener estadisticas', 500);
     }
   }
@@ -345,7 +346,7 @@ export class ChallengeController {
       const reputation = await ChallengeModel.getUserReputation(userId);
       sendSuccess(res, { ...stats, reputation });
     } catch (err) {
-      console.error('Get challenge stats error:', err);
+      logger.error({ error: err }, 'Get challenge stats error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener estadisticas', 500);
     }
   }
@@ -355,7 +356,7 @@ export class ChallengeController {
       const result = await ChallengeAutoService.autoGenerateForOpenJornadas();
       sendSuccess(res, result, 'Retos semanales generados');
     } catch (err) {
-      console.error('Auto-generate challenges error:', err);
+      logger.error({ error: err }, 'Auto-generate challenges error');
       sendError(res, 'INTERNAL_ERROR', 'Error al autogenerar retos', 500);
     }
   }

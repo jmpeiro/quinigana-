@@ -1,9 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject, signal, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, output, HostListener } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../../core/services/auth.service';
+import { GlobalSearchComponent } from '../global-search/global-search.component';
 
 interface NavItem {
   icon: string;
@@ -27,6 +29,15 @@ interface NavItem {
         <button mat-icon-button class="collapse-btn" (click)="toggleCollapse()">
           <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-trigger" (click)="openSearch()">
+        <mat-icon>search</mat-icon>
+        @if (!collapsed()) {
+          <span>Buscar...</span>
+          <span class="kbd">Ctrl+K</span>
+        }
       </div>
 
       <!-- Navigation -->
@@ -173,6 +184,38 @@ interface NavItem {
 
     .collapsed .collapse-btn {
       margin-left: 0;
+    }
+
+    /* Search trigger */
+    .search-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+    .search-trigger:hover {
+      border-color: #c8a84b;
+      color: #c8a84b;
+      background: rgba(200, 168, 75, 0.05);
+    }
+    .search-trigger .kbd {
+      margin-left: auto;
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    .collapsed .search-trigger {
+      justify-content: center;
+      padding: 8px;
     }
 
     /* Navigation */
@@ -393,6 +436,22 @@ interface NavItem {
 })
 export class SidebarComponent {
   private authService = inject(AuthService);
+  private dialog = inject(MatDialog);
+
+  @HostListener('document:keydown.control.k', ['$event'])
+  onCtrlK(event: Event): void {
+    event.preventDefault();
+    this.openSearch();
+  }
+
+  openSearch(): void {
+    this.dialog.open(GlobalSearchComponent, {
+      width: '520px',
+      maxWidth: '95vw',
+      position: { top: '80px' },
+      panelClass: 'search-dialog',
+    });
+  }
 
   user = this.authService.currentUser;
   isAdmin = () => this.user()?.is_admin ?? false;

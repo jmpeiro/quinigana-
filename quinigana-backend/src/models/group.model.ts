@@ -114,18 +114,11 @@ export class GroupModel {
   }
 
   static async getMember(groupId: number, userId: number): Promise<GroupMember | null> {
-    console.log('[GROUP MODEL] getMember called with:', { groupId, userId });
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
       [groupId, userId]
     );
-    console.log('[GROUP MODEL] getMember query result:', {
-      rowCount: rows.length,
-      rows: rows,
-    });
-    const result = rows.length > 0 ? (rows[0] as GroupMember) : null;
-    console.log('[GROUP MODEL] getMember returning:', result);
-    return result;
+    return rows.length > 0 ? (rows[0] as GroupMember) : null;
   }
 
   static async getMemberCount(groupId: number): Promise<number> {

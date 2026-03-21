@@ -17,6 +17,7 @@ import { ThemeService } from '../../core/services/theme.service';
 import { ApiResponse, User } from '../../core/models/user.model';
 import { environment } from '../../../environments/environment';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { AvatarPickerComponent, AvatarPickerResult } from '../../shared/components/avatar-picker/avatar-picker.component';
 
 @Component({
   selector: 'app-profile',
@@ -233,6 +234,37 @@ export class ProfileComponent {
         this.snackBar.open('No se pudo activar las notificaciones push', 'Cerrar', { duration: 5000 });
       }
     }
+  }
+
+  // Language
+  currentLang = signal<'es' | 'en'>(
+    (localStorage.getItem('quinigana-lang') as 'es' | 'en') || 'es'
+  );
+
+  setLang(lang: 'es' | 'en'): void {
+    localStorage.setItem('quinigana-lang', lang);
+    this.currentLang.set(lang);
+    this.snackBar.open(
+      lang === 'es' ? 'Idioma cambiado a Espanol' : 'Language changed to English',
+      'OK',
+      { duration: 3000 }
+    );
+  }
+
+  openAvatarPicker(): void {
+    const u = this.user();
+    if (!u) return;
+
+    const ref = this.dialog.open(AvatarPickerComponent, {
+      data: { userName: `${u.first_name} ${u.last_name || ''}`.trim() },
+      width: '420px',
+    });
+
+    ref.afterClosed().subscribe(async (result: AvatarPickerResult | null) => {
+      if (result?.file) {
+        await this.uploadAvatar(result.file);
+      }
+    });
   }
 
   logout(): void {

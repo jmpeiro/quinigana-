@@ -7,7 +7,11 @@
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
-    "test": "jest --forceExit"
+    "test": "jest --forceExit",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "build:mobile": "ng build --configuration production && npx cap sync"
   },
   "prettier": {
     "printWidth": 100,

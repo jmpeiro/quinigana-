@@ -33,6 +33,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent),
       },
       {
+        path: 'verify-email',
+        loadComponent: () => import('./features/auth/verify-email/verify-email.component').then(m => m.VerifyEmailComponent),
+      },
+      {
         path: 'google-callback',
         loadComponent: () => import('./features/auth/google-callback/google-callback.component').then(m => m.GoogleCallbackComponent),
       },
@@ -47,6 +51,11 @@ export const routes: Routes = [
     path: 'profile',
     canActivate: [authGuard],
     loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent),
+  },
+  {
+    path: 'profile/api-keys',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/profile/api-keys/api-keys.component').then(m => m.ApiKeysComponent),
   },
   {
     path: 'groups',
@@ -83,6 +92,14 @@ export const routes: Routes = [
       {
         path: ':id/comparison/:jornadaId',
         loadComponent: () => import('./features/groups/group-comparison/group-comparison.component').then(m => m.GroupComparisonComponent),
+      },
+      {
+        path: ':id/chat',
+        loadComponent: () => import('./features/groups/group-chat/group-chat.component').then(m => m.GroupChatComponent),
+      },
+      {
+        path: ':id/tournaments',
+        loadComponent: () => import('./features/tournaments/tournaments.component').then(m => m.TournamentsComponent),
       },
     ],
   },
@@ -154,6 +171,10 @@ export const routes: Routes = [
       {
         path: 'global-rankings',
         loadComponent: () => import('./features/stats/global-rankings/global-rankings.component').then(m => m.GlobalRankingsComponent),
+      },
+      {
+        path: 'comparative',
+        loadComponent: () => import('./features/stats/comparative-stats/comparative-stats.component').then(m => m.ComparativeStatsComponent),
       },
     ],
   },

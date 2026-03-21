@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import pool from '../config/database';
+import logger from '../config/logger';
 
 interface MigrationFile {
   id: string;
@@ -67,15 +68,15 @@ async function run(): Promise<void> {
       [migration.id, migration.filename]
     );
 
-    console.log(`Applied migration ${migration.filename}`);
+    logger.info({ filename: migration.filename }, 'Applied migration');
   }
 
-  console.log('Migrations up to date');
+  logger.info('Migrations up to date');
   await pool.end();
 }
 
 run().catch(async (error) => {
-  console.error('Migration failed:', error);
+  logger.error({ error }, 'Migration failed');
   try {
     await pool.end();
   } catch {

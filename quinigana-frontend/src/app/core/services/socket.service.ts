@@ -18,9 +18,11 @@ export class SocketService implements OnDestroy {
 
   private liveScoresSubject = new Subject<LiveScoresUpdate>();
   private connectedSubject = new Subject<boolean>();
+  private standingsSubject = new Subject<any[]>();
 
   liveScores$: Observable<LiveScoresUpdate> = this.liveScoresSubject.asObservable();
   connected$: Observable<boolean> = this.connectedSubject.asObservable();
+  standingsUpdate$: Observable<any[]> = this.standingsSubject.asObservable();
 
   connect(): void {
     if (this.socket?.connected) return;
@@ -51,6 +53,10 @@ export class SocketService implements OnDestroy {
 
     this.socket.on('live-scores:update', (data: LiveScoresUpdate) => {
       this.liveScoresSubject.next(data);
+    });
+
+    this.socket.on('standings:update', (data: any[]) => {
+      this.standingsSubject.next(data);
     });
 
     this.socket.on('connect_error', () => {
@@ -87,5 +93,6 @@ export class SocketService implements OnDestroy {
     this.disconnect();
     this.liveScoresSubject.complete();
     this.connectedSubject.complete();
+    this.standingsSubject.complete();
   }
 }

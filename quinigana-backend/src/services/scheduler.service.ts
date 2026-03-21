@@ -4,6 +4,7 @@ import { ScoreService } from './score.service';
 import { ChallengeService } from './challenge.service';
 import { GamificationService } from './gamification.service';
 import { UserModel } from '../models/user.model';
+import logger from '../config/logger';
 
 const SOFT_DELETE_GRACE_PERIOD_DAYS = 30;
 
@@ -14,7 +15,7 @@ export class SchedulerService {
     if (this.initialized) return;
     this.initialized = true;
 
-    console.log('[Scheduler] Initializing cron jobs...');
+    logger.info('Initializing cron jobs...');
 
     // Run every 5 minutes to check for jornadas to close/finish
     cron.schedule('*/5 * * * *', async () => {
@@ -33,13 +34,13 @@ export class SchedulerService {
 
     // Run immediately on startup
     this.processJornadas().catch(err => {
-      console.error('[Scheduler] Error on initial jornada run:', err);
+      logger.error({ error: err }, 'Error on initial jornada run');
     });
     this.expirePendingChallenges().catch(err => {
-      console.error('[Scheduler] Error on initial challenge expiry run:', err);
+      logger.error({ error: err }, 'Error on initial challenge expiry run');
     });
 
-    console.log('[Scheduler] Cron jobs initialized. Jornadas: every 5 min. Challenge expiry: every 30 min. Soft-delete: daily 3 AM.');
+    logger.info('Cron jobs initialized. Jornadas: every 5 min. Challenge expiry: every 30 min. Soft-delete: daily 3 AM.');
   }
 
   private static async processJornadas(): Promise<void> {
@@ -47,7 +48,7 @@ export class SchedulerService {
       await this.closeExpiredJornadas();
       await this.finishCompletedJornadas();
     } catch (err) {
-      console.error('[Scheduler] Error processing jornadas:', err);
+      logger.error({ error: err }, 'Error processing jornadas');
     }
   }
 
@@ -57,9 +58,9 @@ export class SchedulerService {
     for (const jornada of expiredJornadas) {
       try {
         await JornadaModel.updateStatus(jornada.id, 'closed');
-        console.log(`[Scheduler] Jornada ${jornada.id} (${jornada.name}) closed - deadline passed`);
+        logger.info({ jornadaId: jornada.id, name: jornada.name }, 'Jornada closed - deadline passed');
       } catch (err) {
-        console.error(`[Scheduler] Error closing jornada ${jornada.id}:`, err);
+        logger.error({ error: err, jornadaId: jornada.id }, 'Error closing jornada');
       }
     }
   }
@@ -72,25 +73,25 @@ export class SchedulerService {
         // Calculate scores before marking as finished
         await ScoreService.calculateScoresForJornada(jornada.id);
         await JornadaModel.updateStatus(jornada.id, 'finished');
-        console.log(`[Scheduler] Jornada ${jornada.id} (${jornada.name}) finished - all results in, scores calculated`);
+        logger.info({ jornadaId: jornada.id, name: jornada.name }, 'Jornada finished - scores calculated');
 
         // Resolve challenges for this jornada
         try {
           await ChallengeService.resolveChallengesForJornada(jornada.id);
-          console.log(`[Scheduler] Challenges resolved for jornada ${jornada.id}`);
+          logger.info({ jornadaId: jornada.id }, 'Challenges resolved');
         } catch (err) {
-          console.error(`[Scheduler] Error resolving challenges for jornada ${jornada.id}:`, err);
+          logger.error({ error: err, jornadaId: jornada.id }, 'Error resolving challenges');
         }
 
         // Process gamification achievements for this jornada
         try {
           await GamificationService.processJornadaAchievements(jornada.id);
-          console.log(`[Scheduler] Gamification processed for jornada ${jornada.id}`);
+          logger.info({ jornadaId: jornada.id }, 'Gamification processed');
         } catch (err) {
-          console.error(`[Scheduler] Error processing gamification for jornada ${jornada.id}:`, err);
+          logger.error({ error: err, jornadaId: jornada.id }, 'Error processing gamification');
         }
       } catch (err) {
-        console.error(`[Scheduler] Error finishing jornada ${jornada.id}:`, err);
+        logger.error({ error: err, jornadaId: jornada.id }, 'Error finishing jornada');
       }
     }
   }
@@ -102,10 +103,10 @@ export class SchedulerService {
     try {
       const count = await ChallengeService.expirePendingChallenges();
       if (count > 0) {
-        console.log(`[Scheduler] Expired ${count} pending challenges (48h timeout)`);
+        logger.info({ count }, 'Expired pending challenges (48h timeout)');
       }
     } catch (err) {
-      console.error('[Scheduler] Error expiring pending challenges:', err);
+      logger.error({ error: err }, 'Error expiring pending challenges');
     }
   }
 
@@ -122,15 +123,15 @@ export class SchedulerService {
       for (const userId of userIds) {
         try {
           await UserModel.softDelete(userId);
-          console.log(`[Scheduler] Soft-deleted user ${userId} (grace period expired)`);
+          logger.info({ userId }, 'Soft-deleted user (grace period expired)');
         } catch (err) {
-          console.error(`[Scheduler] Error soft-deleting user ${userId}:`, err);
+          logger.error({ error: err, userId }, 'Error soft-deleting user');
         }
       }
 
-      console.log(`[Scheduler] Processed ${userIds.length} pending deletion(s)`);
+      logger.info({ count: userIds.length }, 'Processed pending deletions');
     } catch (err) {
-      console.error('[Scheduler] Error processing pending deletions:', err);
+      logger.error({ error: err }, 'Error processing pending deletions');
     }
   }
 }

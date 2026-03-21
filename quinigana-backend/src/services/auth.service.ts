@@ -5,6 +5,7 @@ import { generateAccessToken, generateRefreshToken } from '../config/jwt';
 import { hashToken, generateRandomToken } from '../utils/crypto.util';
 import { AuthTokens, TokenPayload, User, UserPublic } from '../types';
 import { EmailService } from './email.service';
+import logger from '../config/logger';
 
 const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_DAYS = 7;
@@ -35,7 +36,7 @@ export class AuthService {
 
     // Send email verification (non-blocking)
     this.sendVerificationEmail(user).catch((err) => {
-      console.error('Failed to send verification email:', err);
+      logger.error({ error: err }, 'Failed to send verification email');
     });
 
     const tokens = await this.generateTokens(user);

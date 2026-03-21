@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import pool from '../config/database';
+import logger from '../config/logger';
 
 /**
  * Audit logging middleware for admin actions.
@@ -35,7 +36,7 @@ export function auditMiddleware(action: string, entity: string) {
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [userId, action, entity, entityId, JSON.stringify(details), ip, requestId]
           ).catch((err) => {
-            console.error('[Audit] Failed to write audit log:', err);
+            logger.error({ error: err }, 'Failed to write audit log');
           });
         }
       }
@@ -90,7 +91,7 @@ export function auditAllAdminActions(req: Request, res: Response, next: NextFunc
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [userId, action, entity, entityId, JSON.stringify(details), ip, requestId]
         ).catch((err) => {
-          console.error('[Audit] Failed to write audit log:', err);
+          logger.error({ error: err }, 'Failed to write audit log');
         });
       }
     }

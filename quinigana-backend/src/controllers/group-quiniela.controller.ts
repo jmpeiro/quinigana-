@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { GroupQuinielaModel } from '../models/group-quiniela.model';
 import { GroupModel } from '../models/group.model';
 import { sendSuccess, sendError } from '../utils/response.util';
+import logger from '../config/logger';
 
 export class GroupQuinielaController {
   // Get active quinielas for user's groups
@@ -11,7 +12,7 @@ export class GroupQuinielaController {
       const quinielas = await GroupQuinielaModel.getActiveForUser(userId);
       sendSuccess(res, quinielas);
     } catch (err) {
-      console.error('Get active quinielas error:', err);
+      logger.error({ error: err }, 'Get active quinielas error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener quinielas activas', 500);
     }
   }
@@ -44,7 +45,7 @@ export class GroupQuinielaController {
         myPredictions
       });
     } catch (err) {
-      console.error('Get quiniela error:', err);
+      logger.error({ error: err }, 'Get quiniela error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener quiniela', 500);
     }
   }
@@ -65,7 +66,7 @@ export class GroupQuinielaController {
       const quinielas = await GroupQuinielaModel.findByGroup(groupId);
       sendSuccess(res, quinielas);
     } catch (err) {
-      console.error('Get group quinielas error:', err);
+      logger.error({ error: err }, 'Get group quinielas error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener quinielas del grupo', 500);
     }
   }
@@ -99,7 +100,7 @@ export class GroupQuinielaController {
       const quiniela = await GroupQuinielaModel.getWithDetails(quinielaId);
       sendSuccess(res, quiniela, 'Quiniela creada exitosamente', 201);
     } catch (err) {
-      console.error('Create quiniela error:', err);
+      logger.error({ error: err }, 'Create quiniela error');
       sendError(res, 'INTERNAL_ERROR', 'Error al crear quiniela', 500);
     }
   }
@@ -142,7 +143,7 @@ export class GroupQuinielaController {
       const updated = await GroupQuinielaModel.getUserPredictions(quinielaId, userId);
       sendSuccess(res, updated, 'Predicciones guardadas');
     } catch (err) {
-      console.error('Save predictions error:', err);
+      logger.error({ error: err }, 'Save predictions error');
       sendError(res, 'INTERNAL_ERROR', 'Error al guardar predicciones', 500);
     }
   }
@@ -173,7 +174,7 @@ export class GroupQuinielaController {
       const ranking = await GroupQuinielaModel.getRanking(quinielaId);
       sendSuccess(res, { ranking }, 'Resultados enviados y puntuaciones calculadas');
     } catch (err) {
-      console.error('Submit results error:', err);
+      logger.error({ error: err }, 'Submit results error');
       sendError(res, 'INTERNAL_ERROR', 'Error al enviar resultados', 500);
     }
   }
@@ -194,7 +195,7 @@ export class GroupQuinielaController {
       const ranking = await GroupQuinielaModel.getRanking(quinielaId);
       sendSuccess(res, ranking);
     } catch (err) {
-      console.error('Get ranking error:', err);
+      logger.error({ error: err }, 'Get ranking error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener ranking', 500);
     }
   }
@@ -214,7 +215,7 @@ export class GroupQuinielaController {
       await GroupQuinielaModel.updateStatus(quinielaId, 'closed');
       sendSuccess(res, { message: 'Quiniela cerrada' });
     } catch (err) {
-      console.error('Close quiniela error:', err);
+      logger.error({ error: err }, 'Close quiniela error');
       sendError(res, 'INTERNAL_ERROR', 'Error al cerrar quiniela', 500);
     }
   }
@@ -238,7 +239,7 @@ export class GroupQuinielaController {
         sendError(res, err.code, err.message, err.statusCode);
         return;
       }
-      console.error('Delete quiniela error:', err);
+      logger.error({ error: err }, 'Delete quiniela error');
       sendError(res, 'INTERNAL_ERROR', 'Error al eliminar quiniela', 500);
     }
   }
@@ -259,7 +260,7 @@ export class GroupQuinielaController {
       const data = await GroupQuinielaModel.getMembersPredictions(quinielaId);
       sendSuccess(res, data);
     } catch (err) {
-      console.error('Get members predictions error:', err);
+      logger.error({ error: err }, 'Get members predictions error');
       sendError(res, 'INTERNAL_ERROR', 'Error al obtener predicciones', 500);
     }
   }

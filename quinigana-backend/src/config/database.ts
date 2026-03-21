@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import { env } from './environment';
+import logger from './logger';
 
 const pool = mysql.createPool({
   host: env.db.host,
@@ -17,10 +18,10 @@ const pool = mysql.createPool({
 export async function testConnection(): Promise<void> {
   try {
     const connection = await pool.getConnection();
-    console.log('✓ Database connected successfully');
+    logger.info('Database connected successfully');
     connection.release();
   } catch (error) {
-    console.error('✗ Database connection failed:', error);
+    logger.error({ error }, 'Database connection failed');
     throw error;
   }
 }
