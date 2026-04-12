@@ -8,7 +8,7 @@ const router = Router();
 
 router.get('/jornada/:jornadaId/suggestions', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const jornadaId = parseInt(req.params.jornadaId);
+    const jornadaId = parseInt(req.params.jornadaId as string);
     if (isNaN(jornadaId)) { sendError(res, 'INVALID_ID', 'ID de jornada invalido', 400); return; }
     const suggestions = await PredictionAnalysisService.getJornadaSuggestions(jornadaId);
     sendSuccess(res, suggestions);

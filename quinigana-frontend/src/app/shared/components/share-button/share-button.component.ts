@@ -2,12 +2,13 @@ import { Component, Input, inject } from '@angular/core';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-share-button',
   standalone: true,
-  imports: [MatMenuModule, MatButtonModule, MatIconModule],
+  imports: [MatMenuModule, MatButtonModule, MatIconModule, MatTooltipModule],
   template: `
     <button mat-icon-button [matMenuTriggerFor]="shareMenu" [matTooltip]="'Compartir'" class="share-btn">
       <mat-icon>share</mat-icon>

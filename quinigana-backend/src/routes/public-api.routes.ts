@@ -43,7 +43,7 @@ router.post('/keys', authMiddleware, async (req: Request, res: Response) => {
 
 router.delete('/keys/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const keyId = parseInt(req.params.id, 10);
+    const keyId = parseInt(req.params.id as string, 10);
     if (isNaN(keyId)) {
       sendError(res, 'VALIDATION_ERROR', 'Invalid key ID');
       return;
@@ -95,7 +95,7 @@ router.get('/jornadas', apiKeyMiddleware, async (req: Request, res: Response) =>
 
 router.get('/jornadas/:id/results', apiKeyMiddleware, async (req: Request, res: Response) => {
   try {
-    const jornadaId = parseInt(req.params.id, 10);
+    const jornadaId = parseInt(req.params.id as string, 10);
     if (isNaN(jornadaId)) {
       sendError(res, 'VALIDATION_ERROR', 'Invalid jornada ID');
       return;
@@ -118,7 +118,7 @@ router.get('/jornadas/:id/results', apiKeyMiddleware, async (req: Request, res: 
 
 router.get('/users/:id/stats', apiKeyMiddleware, async (req: Request, res: Response) => {
   try {
-    const targetUserId = parseInt(req.params.id, 10);
+    const targetUserId = parseInt(req.params.id as string, 10);
     if (isNaN(targetUserId)) {
       sendError(res, 'VALIDATION_ERROR', 'Invalid user ID');
       return;
@@ -169,7 +169,7 @@ router.get('/users/:id/stats', apiKeyMiddleware, async (req: Request, res: Respo
 
 router.get('/groups/:id/rankings', apiKeyMiddleware, async (req: Request, res: Response) => {
   try {
-    const groupId = parseInt(req.params.id, 10);
+    const groupId = parseInt(req.params.id as string, 10);
     const userId = req.authUser!.userId;
 
     if (isNaN(groupId)) {

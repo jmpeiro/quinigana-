@@ -17,7 +17,7 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
       return;
     }
 
-    req.authUser = { userId: result.userId };
+    req.authUser = { userId: result.userId, email: 'api-key', provider: 'api-key' };
     (req as any).apiPermissions = result.permissions;
     next();
   } catch (error) {

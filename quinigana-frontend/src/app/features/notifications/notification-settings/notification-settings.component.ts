@@ -97,7 +97,7 @@ const STORAGE_KEY = 'quinigana-notification-prefs';
   `],
 })
 export class NotificationSettingsComponent implements OnInit {
-  private dialogRef = new MatDialogRef<NotificationSettingsComponent>(null as any, null as any, '');
+  private dialogRef: MatDialogRef<NotificationSettingsComponent>;
 
   constructor(dialogRef: MatDialogRef<NotificationSettingsComponent>) {
     this.dialogRef = dialogRef;

@@ -98,17 +98,14 @@ export class ChallengeSettlementService {
   private static resolveWinner(
     challengerId: number,
     challengedId: number,
-    challenger: { totalPoints: number; correct1x2: number; correctPleno: number },
-    challenged: { totalPoints: number; correct1x2: number; correctPleno: number }
+    challenger: { totalPoints: number; correctPredictions: number },
+    challenged: { totalPoints: number; correctPredictions: number }
   ): number | null {
     if (challenger.totalPoints !== challenged.totalPoints) {
       return challenger.totalPoints > challenged.totalPoints ? challengerId : challengedId;
     }
-    if (challenger.correctPleno !== challenged.correctPleno) {
-      return challenger.correctPleno > challenged.correctPleno ? challengerId : challengedId;
-    }
-    if (challenger.correct1x2 !== challenged.correct1x2) {
-      return challenger.correct1x2 > challenged.correct1x2 ? challengerId : challengedId;
+    if (challenger.correctPredictions !== challenged.correctPredictions) {
+      return challenger.correctPredictions > challenged.correctPredictions ? challengerId : challengedId;
     }
     return null;
   }

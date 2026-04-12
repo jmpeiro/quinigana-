@@ -156,15 +156,15 @@ export class AvatarPickerComponent {
   isConverting = signal(false);
 
   initialsPreview = computed(() =>
-    this.avatarService.generateInitialsAvatar({ name: this.data.userName, size: 128 })
+    this.avatarService.generateInitialsAvatar(this.data.userName, 128)
   );
 
   geometricPreview = computed(() =>
-    this.avatarService.generateGeometricAvatar({ name: this.data.userName, size: 128 })
+    this.avatarService.generateGeometricAvatar(this.data.userName, 128)
   );
 
   gradientPreview = computed(() =>
-    this.avatarService.generateGradientAvatar({ name: this.data.userName, size: 128 })
+    this.avatarService.generateGradientAvatar(this.data.userName, 128)
   );
 
   onTabChange(index: number): void {
@@ -176,7 +176,7 @@ export class AvatarPickerComponent {
     try {
       const styles = ['initials', 'geometric', 'gradient'] as const;
       const style = styles[this.selectedTab()];
-      const dataUrl = this.avatarService.generateAvatar({ name: this.data.userName, size: 128, style });
+      const dataUrl = this.avatarService.generateAvatar(style, this.data.userName, 128);
       const file = await this.avatarService.svgToFile(dataUrl, `avatar-${style}.png`);
       this.dialogRef.close({ file } as AvatarPickerResult);
     } catch {
