@@ -1596,7 +1596,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     const d = this.data();
     if (d?.activeJornada && d.myGroups.length > 0) {
-      this.router.navigate(['/groups', d.myGroups[0].id, 'comparison', d.activeJornada.id]);
+      const groupId = d.activeJornada.groupId ?? d.myGroups[0].id;
+      this.router.navigate(['/groups', groupId, 'comparison', d.activeJornada.id]);
     }
   }
 
@@ -1604,7 +1605,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const d = this.data();
     if (!d?.activeJornada || !d.myGroups.length) return;
 
-    const groupId = d.myGroups[0].id;
+    // The active jornada belongs to a specific group; falling back to the first
+    // group returns 403 for anyone who belongs to more than one.
+    const groupId = d.activeJornada.groupId ?? d.myGroups[0].id;
     const jornadaId = d.activeJornada.id;
 
     this.comparisonService.getGroupJornadaRanking(groupId, jornadaId).subscribe({

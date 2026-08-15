@@ -9,13 +9,21 @@ export class DashboardModel {
     deadline: Date;
     matchCount: number;
     status: string;
+    groupId: number | null;
   } | null> {
     try {
       // Only return jornada if user belongs to a group with an approved proposal for it
       // Show both 'open' and 'closed' jornadas (hide only 'finished')
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT j.id, j.name, j.deadline, j.status,
-                (SELECT COUNT(*) FROM matches WHERE jornada_id = j.id) as matchCount
+                (SELECT COUNT(*) FROM matches WHERE jornada_id = j.id) as matchCount,
+                (SELECT qp2.group_id
+                   FROM quiniela_proposals qp2
+                   INNER JOIN group_members gm2 ON qp2.group_id = gm2.group_id
+                  WHERE qp2.jornada_id = j.id
+                    AND qp2.status = 'approved'
+                    AND gm2.user_id = ?
+                  LIMIT 1) as groupId
          FROM jornadas j
          WHERE j.status IN ('open', 'closed')
            AND EXISTS (
@@ -27,7 +35,7 @@ export class DashboardModel {
            )
          ORDER BY (j.status = 'open') DESC, j.deadline DESC
          LIMIT 1`,
-        [userId]
+        [userId, userId]
       );
       if (rows.length === 0) return null;
       const row = rows[0];
@@ -37,6 +45,7 @@ export class DashboardModel {
         deadline: row.deadline,
         matchCount: row.matchCount,
         status: row.status,
+        groupId: row.groupId ?? null,
       };
     } catch (error) {
       logger.error({ error }, 'Error in getActiveJornada');

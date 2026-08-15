@@ -22,6 +22,7 @@ export interface DashboardData {
     deadline: string;
     matchCount: number;
     status: string;
+    groupId?: number | null;
   } | null;
   myGroups: Array<{
     id: number;
