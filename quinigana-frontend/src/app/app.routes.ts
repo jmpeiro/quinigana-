@@ -43,165 +43,171 @@ export const routes: Routes = [
     ],
   },
   {
-    path: 'dashboard',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
-  },
-  {
-    path: 'profile',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent),
-  },
-  {
-    path: 'profile/api-keys',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/profile/api-keys/api-keys.component').then(m => m.ApiKeysComponent),
-  },
-  {
-    path: 'groups',
-    canActivate: [authGuard],
+    path: '',
+    loadComponent: () => import('./features/layouts/auth-shell.component').then(m => m.AuthShellComponent),
     children: [
-      {
-        path: '',
-        loadComponent: () => import('./features/groups/group-list/group-list.component').then(m => m.GroupListComponent),
-      },
-      {
-        path: 'create',
-        loadComponent: () => import('./features/groups/group-create/group-create.component').then(m => m.GroupCreateComponent),
-      },
-      {
-        path: 'invitations',
-        loadComponent: () => import('./features/groups/invitations/invitations.component').then(m => m.InvitationsComponent),
-      },
-      {
-        path: ':id',
-        loadComponent: () => import('./features/groups/group-detail/group-detail.component').then(m => m.GroupDetailComponent),
-      },
-      {
-        path: ':id/quiniela/:quinielaId',
-        loadComponent: () => import('./features/groups/group-quinielas/play-quiniela.component').then(m => m.PlayQuinielaComponent),
-      },
-      {
-        path: ':id/activity',
-        loadComponent: () => import('./features/groups/group-activity/group-activity.component').then(m => m.GroupActivityComponent),
-      },
-      {
-        path: ':id/invite',
-        loadComponent: () => import('./features/groups/group-invite/group-invite.component').then(m => m.GroupInviteComponent),
-      },
-      {
-        path: ':id/comparison/:jornadaId',
-        loadComponent: () => import('./features/groups/group-comparison/group-comparison.component').then(m => m.GroupComparisonComponent),
-      },
-      {
-        path: ':id/chat',
-        loadComponent: () => import('./features/groups/group-chat/group-chat.component').then(m => m.GroupChatComponent),
-      },
-      {
-        path: ':id/tournaments',
-        loadComponent: () => import('./features/tournaments/tournaments.component').then(m => m.TournamentsComponent),
-      },
-    ],
-  },
-  {
-    path: 'quiniela',
-    canActivate: [authGuard],
-    children: [
-      {
-        path: 'jornadas',
-        loadComponent: () => import('./features/quiniela/jornada-list/jornada-list.component').then(m => m.JornadaListComponent),
-      },
-      {
-        path: 'jornadas/:id',
-        loadComponent: () => import('./features/quiniela/jornada-detail/jornada-detail.component').then(m => m.JornadaDetailComponent),
-      },
-      {
-        path: 'proposals/create',
-        loadComponent: () => import('./features/quiniela/proposal-create/proposal-create.component').then(m => m.ProposalCreateComponent),
-      },
-      {
-        path: 'groups/:groupId/proposals/:proposalId',
-        loadComponent: () => import('./features/quiniela/proposal-detail/proposal-detail.component').then(m => m.ProposalDetailComponent),
-      },
-      {
-        path: 'groups/:groupId/scores',
-        loadComponent: () => import('./features/quiniela/scores/scores.component').then(m => m.ScoresComponent),
-      },
-    ],
-  },
-  {
-    path: 'notifications',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/notifications/notification-list/notification-list.component').then(m => m.NotificationListComponent),
-  },
-  {
-    path: 'challenges',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent),
-  },
-  {
-    path: 'leagues',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/leagues/leagues.component').then(m => m.LeaguesComponent),
-  },
-  {
-    path: 'stats',
-    canActivate: [authGuard],
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./features/stats/personal-stats/personal-stats.component').then(m => m.PersonalStatsComponent),
-      },
-      {
-        path: 'predictions',
-        loadComponent: () => import('./features/stats/prediction-history/prediction-history.component').then(m => m.PredictionHistoryComponent),
-      },
-      {
-        path: 'groups/:groupId/history',
-        loadComponent: () => import('./features/stats/group-history/group-history.component').then(m => m.GroupHistoryComponent),
-      },
-      {
-        path: 'groups/:groupId/jornadas/:jornadaId',
-        loadComponent: () => import('./features/stats/jornada-detail-results/jornada-detail-results.component').then(m => m.JornadaDetailResultsComponent),
-      },
-      {
-        path: 'groups/:groupId/rankings',
-        loadComponent: () => import('./features/stats/group-rankings/group-rankings.component').then(m => m.GroupRankingsComponent),
-      },
-      {
-        path: 'global-rankings',
-        loadComponent: () => import('./features/stats/global-rankings/global-rankings.component').then(m => m.GlobalRankingsComponent),
-      },
-      {
-        path: 'comparative',
-        loadComponent: () => import('./features/stats/comparative-stats/comparative-stats.component').then(m => m.ComparativeStatsComponent),
-      },
-    ],
-  },
-  {
-    path: 'admin',
-    canActivate: [authGuard, adminGuard],
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./features/admin/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
-      },
-      {
-        path: 'users',
-        loadComponent: () => import('./features/admin/user-management/user-management.component').then(m => m.UserManagementComponent),
-      },
-      {
-        path: 'groups',
-        loadComponent: () => import('./features/admin/group-management/group-management.component').then(m => m.GroupManagementComponent),
-      },
-      {
-        path: 'jornadas',
-        loadComponent: () => import('./features/admin/jornada-manage/jornada-manage.component').then(m => m.JornadaManageComponent),
-      },
-      {
-        path: 'seasons',
-        loadComponent: () => import('./features/admin/season-management/season-management.component').then(m => m.SeasonManagementComponent),
-      },
+    {
+      path: 'dashboard',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    },
+    {
+      path: 'profile',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent),
+    },
+    {
+      path: 'profile/api-keys',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/profile/api-keys/api-keys.component').then(m => m.ApiKeysComponent),
+    },
+    {
+      path: 'groups',
+      canActivate: [authGuard],
+      children: [
+        {
+          path: '',
+          loadComponent: () => import('./features/groups/group-list/group-list.component').then(m => m.GroupListComponent),
+        },
+        {
+          path: 'create',
+          loadComponent: () => import('./features/groups/group-create/group-create.component').then(m => m.GroupCreateComponent),
+        },
+        {
+          path: 'invitations',
+          loadComponent: () => import('./features/groups/invitations/invitations.component').then(m => m.InvitationsComponent),
+        },
+        {
+          path: ':id',
+          loadComponent: () => import('./features/groups/group-detail/group-detail.component').then(m => m.GroupDetailComponent),
+        },
+        {
+          path: ':id/quiniela/:quinielaId',
+          loadComponent: () => import('./features/groups/group-quinielas/play-quiniela.component').then(m => m.PlayQuinielaComponent),
+        },
+        {
+          path: ':id/activity',
+          loadComponent: () => import('./features/groups/group-activity/group-activity.component').then(m => m.GroupActivityComponent),
+        },
+        {
+          path: ':id/invite',
+          loadComponent: () => import('./features/groups/group-invite/group-invite.component').then(m => m.GroupInviteComponent),
+        },
+        {
+          path: ':id/comparison/:jornadaId',
+          loadComponent: () => import('./features/groups/group-comparison/group-comparison.component').then(m => m.GroupComparisonComponent),
+        },
+        {
+          path: ':id/chat',
+          loadComponent: () => import('./features/groups/group-chat/group-chat.component').then(m => m.GroupChatComponent),
+        },
+        {
+          path: ':id/tournaments',
+          loadComponent: () => import('./features/tournaments/tournaments.component').then(m => m.TournamentsComponent),
+        },
+      ],
+    },
+    {
+      path: 'quiniela',
+      canActivate: [authGuard],
+      children: [
+        {
+          path: 'jornadas',
+          loadComponent: () => import('./features/quiniela/jornada-list/jornada-list.component').then(m => m.JornadaListComponent),
+        },
+        {
+          path: 'jornadas/:id',
+          loadComponent: () => import('./features/quiniela/jornada-detail/jornada-detail.component').then(m => m.JornadaDetailComponent),
+        },
+        {
+          path: 'proposals/create',
+          loadComponent: () => import('./features/quiniela/proposal-create/proposal-create.component').then(m => m.ProposalCreateComponent),
+        },
+        {
+          path: 'groups/:groupId/proposals/:proposalId',
+          loadComponent: () => import('./features/quiniela/proposal-detail/proposal-detail.component').then(m => m.ProposalDetailComponent),
+        },
+        {
+          path: 'groups/:groupId/scores',
+          loadComponent: () => import('./features/quiniela/scores/scores.component').then(m => m.ScoresComponent),
+        },
+      ],
+    },
+    {
+      path: 'notifications',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/notifications/notification-list/notification-list.component').then(m => m.NotificationListComponent),
+    },
+    {
+      path: 'challenges',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent),
+    },
+    {
+      path: 'leagues',
+      canActivate: [authGuard],
+      loadComponent: () => import('./features/leagues/leagues.component').then(m => m.LeaguesComponent),
+    },
+    {
+      path: 'stats',
+      canActivate: [authGuard],
+      children: [
+        {
+          path: '',
+          loadComponent: () => import('./features/stats/personal-stats/personal-stats.component').then(m => m.PersonalStatsComponent),
+        },
+        {
+          path: 'predictions',
+          loadComponent: () => import('./features/stats/prediction-history/prediction-history.component').then(m => m.PredictionHistoryComponent),
+        },
+        {
+          path: 'groups/:groupId/history',
+          loadComponent: () => import('./features/stats/group-history/group-history.component').then(m => m.GroupHistoryComponent),
+        },
+        {
+          path: 'groups/:groupId/jornadas/:jornadaId',
+          loadComponent: () => import('./features/stats/jornada-detail-results/jornada-detail-results.component').then(m => m.JornadaDetailResultsComponent),
+        },
+        {
+          path: 'groups/:groupId/rankings',
+          loadComponent: () => import('./features/stats/group-rankings/group-rankings.component').then(m => m.GroupRankingsComponent),
+        },
+        {
+          path: 'global-rankings',
+          loadComponent: () => import('./features/stats/global-rankings/global-rankings.component').then(m => m.GlobalRankingsComponent),
+        },
+        {
+          path: 'comparative',
+          loadComponent: () => import('./features/stats/comparative-stats/comparative-stats.component').then(m => m.ComparativeStatsComponent),
+        },
+      ],
+    },
+    {
+      path: 'admin',
+      canActivate: [authGuard, adminGuard],
+      children: [
+        {
+          path: '',
+          loadComponent: () => import('./features/admin/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
+        },
+        {
+          path: 'users',
+          loadComponent: () => import('./features/admin/user-management/user-management.component').then(m => m.UserManagementComponent),
+        },
+        {
+          path: 'groups',
+          loadComponent: () => import('./features/admin/group-management/group-management.component').then(m => m.GroupManagementComponent),
+        },
+        {
+          path: 'jornadas',
+          loadComponent: () => import('./features/admin/jornada-manage/jornada-manage.component').then(m => m.JornadaManageComponent),
+        },
+        {
+          path: 'seasons',
+          loadComponent: () => import('./features/admin/season-management/season-management.component').then(m => m.SeasonManagementComponent),
+        },
+      ],
+    },
     ],
   },
   {

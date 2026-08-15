@@ -85,6 +85,19 @@ export class ProposalModel {
     return { items: rows as (QuinielaProposal & { proposer_name: string; jornada_name: string })[], total };
   }
 
+  /**
+   * The (group, jornada, user) unique index means a member can only ever have
+   * one proposal per jornada in a group; this finds it so callers can route to
+   * the existing one instead of hitting a duplicate-key error.
+   */
+  static async findOwnByGroupAndJornada(groupId: number, jornadaId: number, userId: number): Promise<QuinielaProposal | null> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT * FROM quiniela_proposals WHERE group_id = ? AND jornada_id = ? AND proposed_by = ? LIMIT 1',
+      [groupId, jornadaId, userId]
+    );
+    return rows.length > 0 ? (rows[0] as QuinielaProposal) : null;
+  }
+
   static async findApprovedByGroupAndJornada(groupId: number, jornadaId: number): Promise<QuinielaProposal | null> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       "SELECT * FROM quiniela_proposals WHERE group_id = ? AND jornada_id = ? AND status = 'approved' LIMIT 1",

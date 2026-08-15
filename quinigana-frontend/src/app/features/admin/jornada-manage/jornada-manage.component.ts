@@ -82,7 +82,7 @@ interface EditMatchRow {
               </div>
             </div>
 
-            <!-- Auto-fill from API -->
+            <!-- Load the official 15-fixture coupon -->
             <div class="autofill-row">
               <button mat-raised-button class="btn-quiniela" (click)="autoFillQuiniela()" [disabled]="loadingQuiniela()">
                 @if (loadingQuiniela()) {
@@ -91,33 +91,9 @@ interface EditMatchRow {
                 @if (!loadingQuiniela()) {
                   <mat-icon>sports_soccer</mat-icon>
                 }
-                <span>La Quiniela (15)</span>
+                <span>Cargar La Quiniela (15 partidos)</span>
               </button>
-              <span class="autofill-separator">o</span>
-              <mat-form-field appearance="outline" class="autofill-field">
-                <mat-label>Liga</mat-label>
-                <mat-select [(ngModel)]="selectedCompetition">
-                  <mat-option value="PD">La Liga</mat-option>
-                  <mat-option value="PL">Premier League</mat-option>
-                  <mat-option value="BL1">Bundesliga</mat-option>
-                  <mat-option value="SA">Serie A</mat-option>
-                  <mat-option value="FL1">Ligue 1</mat-option>
-                  <mat-option value="CL">Champions League</mat-option>
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="autofill-field num">
-                <mat-label>Jornada API</mat-label>
-                <input matInput type="number" [(ngModel)]="apiMatchday" min="1">
-              </mat-form-field>
-              <button mat-raised-button class="btn-autofill" (click)="autoFillMatches()" [disabled]="loadingAutoFill()">
-                @if (loadingAutoFill()) {
-                  <mat-spinner diameter="18"></mat-spinner>
-                }
-                @if (!loadingAutoFill()) {
-                  <mat-icon>download</mat-icon>
-                }
-                <span>Auto-rellenar</span>
-              </button>
+              <span class="autofill-hint">Trae los 15 partidos oficiales de la jornada, de Primera y Segunda</span>
             </div>
 
             <!-- Meta fields -->
@@ -185,33 +161,7 @@ interface EditMatchRow {
                 <mat-spinner diameter="36"></mat-spinner>
               </div>
             } @else if (resultRows.length > 0) {
-              <!-- Auto-fill results from API -->
-              <div class="autofill-row">
-                <mat-form-field appearance="outline" class="autofill-field">
-                  <mat-label>Liga</mat-label>
-                  <mat-select [(ngModel)]="resultsCompetition">
-                    <mat-option value="PD">La Liga</mat-option>
-                    <mat-option value="PL">Premier League</mat-option>
-                    <mat-option value="BL1">Bundesliga</mat-option>
-                    <mat-option value="SA">Serie A</mat-option>
-                    <mat-option value="FL1">Ligue 1</mat-option>
-                    <mat-option value="CL">Champions League</mat-option>
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="autofill-field num">
-                  <mat-label>Jornada</mat-label>
-                  <input matInput type="number" [(ngModel)]="resultsMatchday" min="1">
-                </mat-form-field>
-                <button mat-raised-button class="btn-autofill" (click)="autoFillResults()" [disabled]="loadingAutoFillResults()">
-                  @if (loadingAutoFillResults()) {
-                    <mat-spinner diameter="18"></mat-spinner>
-                  }
-                  @if (!loadingAutoFillResults()) {
-                    <mat-icon>download</mat-icon>
-                  }
-                  <span>Auto-rellenar</span>
-                </button>
-              </div>
+              <p class="results-hint">Introduce el resultado de cada partido. La quiniela mezcla Primera y Segunda, asi que los resultados se cargan a mano.</p>
 
               <div class="quiniela-table">
                 <div class="table-header">
@@ -388,6 +338,8 @@ interface EditMatchRow {
     .autofill-field.num { max-width: 100px; }
     .btn-quiniela { background: #c8102e !important; color: #fff !important; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
     .autofill-separator { color: #94a3b8; font-size: 0.8rem; font-weight: 600; }
+    .autofill-hint { color: #64748b; font-size: 0.82rem; line-height: 1.4; }
+    .results-hint { color: #64748b; font-size: 0.86rem; line-height: 1.5; margin: 0 0 16px; }
     .btn-autofill { background: #1e293b !important; color: #fff !important; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
     /* Meta row */
@@ -769,73 +721,6 @@ export class JornadaManageComponent implements OnInit {
     if (result.home_score > result.away_score) return '1';
     if (result.home_score === result.away_score) return 'X';
     return '2';
-  }
-
-  autoFillResults(): void {
-    if (!this.resultsMatchday || this.resultsMatchday < 1) {
-      this.showSnackbar('Introduce un numero de jornada valido', true);
-      return;
-    }
-
-    this.loadingAutoFillResults.set(true);
-
-    this.adminService.getFootballDataResults(this.resultsCompetition, this.resultsMatchday).subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
-          const apiResults = response.data;
-          let filled = 0;
-          for (let i = 0; i < this.resultRows.length && i < apiResults.length; i++) {
-            if (apiResults[i].home_score !== null && apiResults[i].away_score !== null) {
-              this.resultRows[i].home_score = apiResults[i].home_score;
-              this.resultRows[i].away_score = apiResults[i].away_score;
-              filled++;
-            }
-          }
-          if (filled > 0) {
-            this.showSnackbar(`${filled} resultados rellenados automaticamente`, false);
-          } else {
-            this.showSnackbar('No hay resultados disponibles aun (partidos no finalizados)', true);
-          }
-        } else {
-          this.showSnackbar('No se encontraron resultados', true);
-        }
-        this.loadingAutoFillResults.set(false);
-      },
-      error: (err) => {
-        this.showSnackbar(err?.error?.message || 'Error al obtener resultados de la API', true);
-        this.loadingAutoFillResults.set(false);
-      }
-    });
-  }
-
-  autoFillMatches(): void {
-    if (!this.apiMatchday || this.apiMatchday < 1) {
-      this.showSnackbar('Introduce un numero de jornada valido', true);
-      return;
-    }
-
-    this.loadingAutoFill.set(true);
-
-    this.adminService.getFootballDataMatches(this.selectedCompetition, this.apiMatchday).subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
-          const apiMatches = response.data;
-          const count = Math.min(apiMatches.length, this.matchRows.length);
-          for (let i = 0; i < count; i++) {
-            this.matchRows[i].home_team = apiMatches[i].home_team;
-            this.matchRows[i].away_team = apiMatches[i].away_team;
-          }
-          this.showSnackbar(`${count} partidos rellenados (de ${this.matchRows.length})`, false);
-        } else {
-          this.showSnackbar('No se encontraron partidos', true);
-        }
-        this.loadingAutoFill.set(false);
-      },
-      error: (err) => {
-        this.showSnackbar(err?.error?.message || 'Error al obtener partidos de la API', true);
-        this.loadingAutoFill.set(false);
-      }
-    });
   }
 
   autoFillQuiniela(): void {

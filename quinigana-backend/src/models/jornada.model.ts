@@ -17,10 +17,23 @@ export interface JornadaSearchParams {
 }
 
 export class JornadaModel {
+  /**
+   * MySQL DATETIME/TIMESTAMP columns reject the ISO 8601 form the browser
+   * produces with toISOString() ("2026-08-14T22:00:00.000Z"), so normalise it
+   * to "YYYY-MM-DD HH:MM:SS" in UTC before binding.
+   */
+  private static toMysqlDateTime(value: string): string {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toISOString().slice(0, 19).replace('T', ' ');
+  }
+
   static async create(name: string, season: string, jornadaNumber: number, deadline: string): Promise<number> {
     const [result] = await pool.execute<ResultSetHeader>(
       'INSERT INTO jornadas (name, season, jornada_number, deadline) VALUES (?, ?, ?, ?)',
-      [name, season, jornadaNumber, deadline]
+      [name, season, jornadaNumber, this.toMysqlDateTime(deadline)]
     );
     return result.insertId;
   }

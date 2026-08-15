@@ -33,6 +33,18 @@ const redisOptions: RedisOptions = {
  * Primary Redis client (singleton).
  * Import this wherever you need direct Redis access.
  */
+// Redis is optional: the app degrades to in-memory caching without it. Setting
+// REDIS_ENABLED=false stops ioredis from retrying forever and filling the log
+// with connection errors on deployments that have no Redis installed.
+const redisEnabled = (process.env.REDIS_ENABLED || 'true').toLowerCase() !== 'false';
+
+if (!redisEnabled) {
+  redisOptions.lazyConnect = true;
+  redisOptions.retryStrategy = () => null;
+  redisOptions.reconnectOnError = () => false;
+  logger.info('Redis: disabled by REDIS_ENABLED=false, using in-memory cache');
+}
+
 export const redisClient = new Redis(redisOptions);
 
 /**

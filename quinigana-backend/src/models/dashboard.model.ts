@@ -25,7 +25,7 @@ export class DashboardModel {
                AND qp.status = 'approved'
                AND gm.user_id = ?
            )
-         ORDER BY j.deadline ASC
+         ORDER BY (j.status = 'open') DESC, j.deadline DESC
          LIMIT 1`,
         [userId]
       );

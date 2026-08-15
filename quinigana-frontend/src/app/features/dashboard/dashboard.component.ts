@@ -83,7 +83,19 @@ import { OnboardingComponent } from '../../shared/components/onboarding/onboardi
           } @else {
             <section class="jornada empty-jornada">
               <mat-icon>event_busy</mat-icon>
-              <span>No hay jornada activa</span>
+              @if (data()!.myGroups.length === 0) {
+                <div class="empty-copy">
+                  <strong>Todavia no juegas ninguna quiniela</strong>
+                  <span>Crea un grupo o acepta una invitacion para empezar.</span>
+                  <button mat-stroked-button (click)="navigate('/groups')">Ir a Grupos</button>
+                </div>
+              } @else {
+                <div class="empty-copy">
+                  <strong>Tu grupo aun no juega esta jornada</strong>
+                  <span>Propon una quiniela en tu grupo y sometela a votacion. Cuando se apruebe, aparecera aqui.</span>
+                  <button mat-stroked-button (click)="navigate('/groups/' + data()!.myGroups[0].id)">Proponer quiniela</button>
+                </div>
+              }
             </section>
           }
 
@@ -481,11 +493,20 @@ import { OnboardingComponent } from '../../shared/components/onboarding/onboardi
     }
     .empty-jornada {
       justify-content: center;
-      gap: 0.5rem;
+      gap: 0.85rem;
       color: #94a3b8;
       cursor: default;
       &:hover { box-shadow: none; border-color: #e2e8f0; }
       mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    }
+    .empty-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.35rem;
+      strong { color: #475569; font-size: 0.95rem; }
+      span { color: #94a3b8; font-size: 0.85rem; line-height: 1.45; }
+      button { margin-top: 0.4rem; }
     }
     .jornada-badge {
       font-size: 0.6rem;

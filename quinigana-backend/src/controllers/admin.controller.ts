@@ -138,7 +138,12 @@ export class AdminController {
       const matches = await FootballDataService.getMatches(competition, matchday);
       sendSuccess(res, matches);
     } catch (err: any) {
-      sendError(res, 'FOOTBALL_DATA_ERROR', err.message || 'Failed to fetch matches from football-data.org', 500);
+      sendError(
+        res,
+        'FOOTBALL_DATA_UNAVAILABLE',
+        `Football data provider unavailable: ${err.message || 'unknown error'}. Check FOOTBALL_DATA_API_KEY.`,
+        503
+      );
     }
   }
 
@@ -155,7 +160,12 @@ export class AdminController {
       const results = await FootballDataService.getResults(competition, matchday);
       sendSuccess(res, results);
     } catch (err: any) {
-      sendError(res, 'FOOTBALL_DATA_ERROR', err.message || 'Failed to fetch results from football-data.org', 500);
+      sendError(
+        res,
+        'FOOTBALL_DATA_UNAVAILABLE',
+        `Football data provider unavailable: ${err.message || 'unknown error'}. Check FOOTBALL_DATA_API_KEY.`,
+        503
+      );
     }
   }
 
@@ -165,7 +175,16 @@ export class AdminController {
       const matchday = await FootballDataService.getCurrentMatchday(competition);
       sendSuccess(res, { matchday });
     } catch (err: any) {
-      sendError(res, 'FOOTBALL_DATA_ERROR', err.message || 'Failed to get current matchday', 500);
+      // The upstream provider being down or rejecting our token is not an
+      // internal failure: report it as a service outage so the admin UI can
+      // tell the operator to check the FOOTBALL_DATA_API_KEY instead of
+      // showing a generic "unexpected error".
+      sendError(
+        res,
+        'FOOTBALL_DATA_UNAVAILABLE',
+        `Football data provider unavailable: ${err.message || 'unknown error'}. Check FOOTBALL_DATA_API_KEY.`,
+        503
+      );
     }
   }
 

@@ -80,7 +80,10 @@ export class AuthService {
       // Logout even if API call fails
     } finally {
       this.clearSession();
-      this.router.navigate(['/auth/login']);
+      // Hard reload instead of router navigation: a same-document navigation
+      // keeps this service alive, and a later refresh would re-authenticate
+      // through tryAutoLogin() using any cookie the server did not revoke.
+      window.location.href = '/auth/login';
     }
   }
 
@@ -215,5 +218,21 @@ export class AuthService {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
     }
+    this.clearRefreshCookie();
+  }
+
+  /**
+   * Drops the refresh token cookie client-side.
+   *
+   * The cookie is httpOnly when set over HTTPS, so this only succeeds for
+   * non-httpOnly variants; the server-side revocation on /auth/logout is what
+   * guarantees the session is really gone. Clearing it here stops a page reload
+   * from silently re-authenticating through tryAutoLogin() when the logout
+   * request could not reach the API.
+   */
+  private clearRefreshCookie(): void {
+    const expiry = 'expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = `refreshToken=; ${expiry}`;
+    document.cookie = `csrf-token=; ${expiry}`;
   }
 }

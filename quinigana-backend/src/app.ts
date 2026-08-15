@@ -21,6 +21,11 @@ import v1Routes from './routes/v1';
 
 const app = express();
 
+// No ETags on API responses: the SPA polls these endpoints and a 304 hands it
+// an empty body, so freshly created rows (invitations, notifications) stayed
+// invisible until the browser cache was cleared by hand.
+app.set('etag', false);
+
 // CORS must be first to handle preflight OPTIONS requests
 app.use(cors(corsOptions));
 
@@ -72,6 +77,15 @@ app.get('/api/v1/uploads/:filename', authMiddleware, (req, res) => {
 });
 
 // API routes — versioned under /api/v1
+// API responses are per-user and change constantly (new jornadas, proposals,
+// invitations). Without this the browser serves a stale 200 from disk cache and
+// freshly created rows stay invisible until a hard reload.
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  next();
+});
+
 app.use('/api/v1', v1Routes);
 
 // Backward-compatible alias: /api/* → same handlers as /api/v1/*

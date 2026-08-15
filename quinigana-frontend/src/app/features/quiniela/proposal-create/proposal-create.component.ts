@@ -55,6 +55,12 @@ interface MatchPrediction {
         <div class="error-container">
           <mat-icon>error_outline</mat-icon>
           <p>{{ error() }}</p>
+          @if (existingProposalId()) {
+            <button mat-raised-button color="primary" (click)="goToExisting()">
+              <mat-icon>visibility</mat-icon>
+              Ver la quiniela del grupo
+            </button>
+          }
         </div>
       } @else if (jornada()) {
         <mat-card class="jornada-info-card">
@@ -63,6 +69,22 @@ interface MatchPrediction {
               <span class="jornada-name">{{ jornada()!.name }}</span>
               <span class="jornada-detail">Temporada {{ jornada()!.season }} - Jornada #{{ jornada()!.jornada_number }}</span>
             </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="rules-card">
+          <mat-card-content>
+            <div class="rules-head">
+              <mat-icon>emoji_events</mat-icon>
+              <span>Como se puntua</span>
+            </div>
+            <ul class="rules-list">
+              <li><b>1 punto</b> por acertar el 1X2 marcando un solo signo</li>
+              <li><b>0,5 puntos</b> si marcas doble y aciertas</li>
+              <li><b>0 puntos</b> si marcas triple</li>
+              <li><b>3 puntos</b> por acertar el resultado exacto del Pleno al 15</li>
+            </ul>
+            <p class="rules-foot">La propuesta se aprueba cuando la vota a favor la mitad de los miembros mas uno.</p>
           </mat-card-content>
         </mat-card>
 
@@ -196,6 +218,33 @@ interface MatchPrediction {
       p { margin-top: 12px; font-size: 16px; }
     }
 
+    .rules-card {
+      margin-bottom: 1rem;
+      border-left: 3px solid #c9a227;
+    }
+    .rules-head {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.6rem;
+      mat-icon { color: #c9a227; font-size: 20px; width: 20px; height: 20px; }
+    }
+    .rules-list {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: #64748b;
+      font-size: 0.87rem;
+      line-height: 1.7;
+      b { color: #334155; }
+    }
+    .rules-foot {
+      margin: 0.7rem 0 0;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
     .jornada-info-card {
       background: #fff;
       border: 1px solid #e2e8f0;
@@ -359,6 +408,7 @@ export class ProposalCreateComponent implements OnInit {
   loading = signal(true);
   submitting = signal(false);
   submitted = signal(false);
+  existingProposalId = signal<number | null>(null);
   error = signal<string | null>(null);
 
   title = '';
@@ -370,8 +420,24 @@ export class ProposalCreateComponent implements OnInit {
     this.jornadaId = Number(this.route.snapshot.queryParamMap.get('jornadaId')) || 0;
 
     if (!this.jornadaId) {
-      this.error.set('Falta el parametro jornadaId.');
-      this.loading.set(false);
+      // Entry points that only know the group (e.g. the group quinielas tab)
+      // navigate here without a jornada, so fall back to the active one
+      // instead of dead-ending on a missing-parameter error.
+      this.jornadaService.getActive().subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.jornadaId = response.data.id;
+            this.loadData();
+          } else {
+            this.error.set('No hay ninguna jornada activa en este momento.');
+            this.loading.set(false);
+          }
+        },
+        error: () => {
+          this.error.set('No se pudo cargar la jornada activa.');
+          this.loading.set(false);
+        },
+      });
       return;
     }
 
@@ -421,6 +487,10 @@ export class ProposalCreateComponent implements OnInit {
               away_score_prediction: null,
             }))
           );
+          // Only one proposal per group and jornada can be active, so check now
+          // rather than letting the user fill in 15 predictions and fail on save.
+          this.checkExistingProposal();
+          return;
         } else {
           this.error.set('Error al cargar los partidos de la jornada.');
         }
@@ -428,6 +498,38 @@ export class ProposalCreateComponent implements OnInit {
       },
       error: (err) => {
         this.error.set(err?.error?.message || 'Error al cargar la jornada.');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  goToExisting(): void {
+    const id = this.existingProposalId();
+    if (id) {
+      this.router.navigate(['/quiniela/groups', this.groupId, 'proposals', id]);
+    }
+  }
+
+  private checkExistingProposal(): void {
+    this.proposalService.getByGroup(this.groupId, 1, 100).subscribe({
+      next: (response) => {
+        const items = response?.data?.items ?? [];
+        const active = items.find(
+          (p: any) => p.jornada_id === this.jornadaId && (p.status === 'approved' || p.status === 'pending')
+        );
+        if (active) {
+          this.existingProposalId.set(active.id);
+          this.error.set(
+            active.status === 'approved'
+              ? 'Este grupo ya tiene una quiniela aprobada para esta jornada.'
+              : 'Ya hay una propuesta en votacion para esta jornada.'
+          );
+        }
+        this.loading.set(false);
+      },
+      error: () => {
+        // A failed check must not block creating a proposal; the server
+        // rejects duplicates anyway.
         this.loading.set(false);
       },
     });

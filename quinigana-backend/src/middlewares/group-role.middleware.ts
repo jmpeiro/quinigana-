@@ -7,7 +7,9 @@ import logger from '../config/logger';
 export function groupMemberMiddleware(req: Request, res: Response, next: NextFunction): void {
   let groupId: number;
   try {
-    groupId = parseId(req.params.id || req.params.groupId);
+    // groupId is the explicit name and must win: nested routes like
+    // /:groupId/proposals/:id/comments also define :id, which is the proposal.
+    groupId = parseId(req.params.groupId || req.params.id);
   } catch {
     sendError(res, 'INVALID_GROUP_ID', 'Invalid group ID', 400);
     return;
@@ -29,7 +31,9 @@ export function groupMemberMiddleware(req: Request, res: Response, next: NextFun
 export function groupAdminMiddleware(req: Request, res: Response, next: NextFunction): void {
   let groupId: number;
   try {
-    groupId = parseId(req.params.id || req.params.groupId);
+    // groupId is the explicit name and must win: nested routes like
+    // /:groupId/proposals/:id/comments also define :id, which is the proposal.
+    groupId = parseId(req.params.groupId || req.params.id);
   } catch {
     sendError(res, 'INVALID_GROUP_ID', 'Invalid group ID', 400);
     return;

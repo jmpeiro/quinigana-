@@ -58,7 +58,10 @@ const ACCEPT_LANGUAGES = [
 ];
 
 export class QuinielaScraper {
-  private static readonly URL = 'https://www.resultados-futbol.com/quiniela';
+  // resultados-futbol.com/quiniela now 301s to besoccer.es, which serves the
+  // site-wide match feed rather than the coupon, so the 15 quiniela fixtures
+  // (Primera + Segunda mixed) are read from eduardolosilla.es instead.
+  private static readonly URL = 'https://www.eduardolosilla.es/quiniela';
 
   private static liveCache: {
     data: Map<string, { home_score: number; away_score: number; status: string }>;
@@ -294,16 +297,15 @@ export class QuinielaScraper {
   private static parseMatches(html: string): MatchData[] {
     const year = new Date().getFullYear();
 
-    const ultimaIndex = html.search(/[Úú]ltima\s+jornada/i);
-    const currentSection = ultimaIndex > 0 ? html.substring(0, ultimaIndex) : html;
-
-    const anchorRegex = /<a[^>]*href="\/partido\/[^"]*"[^>]*>\s*([^<]+?)\s*-\s*([^<]+?)\s*<\/a>/gi;
+    // Each coupon row carries the fixture in a title attribute next to the
+    // qtitulo marker, e.g. qtitulo="" title="ALAVES - GETAFE".
+    const rowRegex = /qtitulo=""\s+title="([^"]+?)\s+-\s+([^"]+?)"/gi;
     const allMatches: { home: string; away: string }[] = [];
 
     let m;
-    while ((m = anchorRegex.exec(currentSection)) !== null) {
-      const home = m[1].trim();
-      const away = m[2].trim();
+    while ((m = rowRegex.exec(html)) !== null) {
+      const home = this.cleanTeamName(m[1]);
+      const away = this.cleanTeamName(m[2]);
       if (home && away) {
         allMatches.push({ home, away });
       }
@@ -321,6 +323,16 @@ export class QuinielaScraper {
     }
 
     return matches;
+  }
+
+  private static cleanTeamName(raw: string): string {
+    return raw
+      .replace(/&aacute;/gi, 'a').replace(/&eacute;/gi, 'e')
+      .replace(/&iacute;/gi, 'i').replace(/&oacute;/gi, 'o')
+      .replace(/&uacute;/gi, 'u').replace(/&ntilde;/gi, 'n')
+      .replace(/&[a-z]+;/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private static async fetchPage(url: string): Promise<string> {

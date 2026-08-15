@@ -901,7 +901,7 @@ export class GroupDetailComponent implements OnInit {
   }
 
   goToProposal(proposal: QuinielaProposal): void {
-    this.router.navigate(['/groups', this.groupId(), 'proposals', proposal.id]);
+    this.router.navigate(['/quiniela/groups', this.groupId(), 'proposals', proposal.id]);
   }
 
   copyInviteLink(): void {

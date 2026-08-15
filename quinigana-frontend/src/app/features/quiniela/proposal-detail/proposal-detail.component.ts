@@ -72,6 +72,13 @@ import { ProposalWithDetails, ProposalComment } from '../../../core/models/propo
                 </div>
               </div>
             </div>
+            @if (proposal()!.status === 'pending') {
+              <p class="vote-hint">
+                Se aprueba con {{ majorityNeeded() }}
+                {{ majorityNeeded() === 1 ? 'voto a favor' : 'votos a favor' }}
+                (mayoria de {{ proposal()!.total_members_at_creation }} miembros).
+              </p>
+            }
           </mat-card-content>
 
           <mat-card-actions class="header-actions">
@@ -300,6 +307,12 @@ import { ProposalWithDetails, ProposalComment } from '../../../core/models/propo
       border: 1px solid rgba(239, 83, 80, 0.25);
     }
 
+    .vote-hint {
+      margin: 0.6rem 0 0;
+      color: #64748b;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
     .votes-info {
       display: flex;
       align-items: center;
@@ -549,6 +562,11 @@ export class ProposalDetailComponent implements OnInit {
   currentUserId = computed(() => {
     const user = this.authService.currentUser();
     return user ? user.id : 0;
+  });
+
+  majorityNeeded = computed(() => {
+    const total = this.proposal()?.total_members_at_creation ?? 0;
+    return Math.floor(total / 2) + 1;
   });
 
   canVote = computed(() => {

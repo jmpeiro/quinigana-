@@ -28,6 +28,13 @@ export class ProposalService {
       throw new Error('Este grupo ya tiene una quiniela aprobada para esta jornada');
     }
 
+    // A unique index covers (group, jornada, user), so a second attempt would
+    // surface a raw duplicate-key error. Say what actually happened instead.
+    const own = await ProposalModel.findOwnByGroupAndJornada(groupId, data.jornada_id, userId);
+    if (own) {
+      throw new Error('Ya tienes una propuesta para esta jornada en este grupo. Abrela desde la pestana Propuestas del grupo.');
+    }
+
     const matches = await MatchModel.findByJornada(data.jornada_id);
     const matchIds = matches.map(m => m.id);
     for (const pred of data.predictions) {

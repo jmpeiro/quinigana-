@@ -7,6 +7,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { requestIdInterceptor } from './core/interceptors/request-id.interceptor';
+import { csrfInterceptor } from './core/interceptors/csrf.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { AuthService } from './core/services/auth.service';
 import { TranslateService } from './core/services/translate.service';
@@ -25,7 +26,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([requestIdInterceptor, authInterceptor, errorInterceptor])),
+    provideHttpClient(withInterceptors([requestIdInterceptor, authInterceptor, csrfInterceptor, errorInterceptor])),
     provideAnimationsAsync(),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
