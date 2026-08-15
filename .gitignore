@@ -30,3 +30,6 @@ npm-debug.log*
 # Misc
 *.tmp
 *.temp
+
+# Claude Code: settings.json se comparte; los .local.json son de cada maquina
+.claude/settings.local.json

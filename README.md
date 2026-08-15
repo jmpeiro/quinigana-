@@ -297,6 +297,17 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
 
 ---
 
+## Configuracion de Claude Code
+
+`.claude/settings.json` se versiona: lleva los permisos de comandos comunes del
+proyecto y sirve tal cual al clonar el repositorio en otra maquina.
+
+`.claude/settings.local.json` esta en `.gitignore` a proposito: acumula rutas
+propias de cada equipo (`C:\xampp`, `C:\laragon`...) y comandos de un solo uso,
+asi que no es portable. Cada maquina genera el suyo.
+
+---
+
 ## Docker (stack completo, entorno local)
 
 ```bash

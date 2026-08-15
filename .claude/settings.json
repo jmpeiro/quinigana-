@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker info)",
+      "Bash(powershell.exe -Command \"docker info\")",
+      "Bash(powershell.exe -Command \"docker info 2>&1 | Select -First 3\")",
+      "Bash(npm i --save-dev @types/json2csv)",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object OwningProcess,State\")",
+      "Bash(powershell.exe -Command \"netstat -ano | findstr :3000\")",
+      "Bash(powershell.exe -Command \"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime | Format-Table\")",
+      "Bash(powershell.exe -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Name node -Force -ErrorAction SilentlyContinue\")",
+      "Bash(npx ts-node -e \":*)",
+      "Bash(timeout 15 npx nodemon src/server.ts)",
+      "Bash(timeout 25 npx ts-node src/server.ts)",
+      "Read(//tmp/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(ls \"/c/wamp\"*/bin/mysql/mysql*/bin/mysql.exe)",
+      "Read(//c/laragon/bin/**)",
+      "Bash(ssh -i ~/.ssh/quinigana_vps:*)",
+      "Bash(scp -i ~/.ssh/quinigana_vps:*)",
+      "Bash(npm run build:prod)",
+      "Bash(npx tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}
