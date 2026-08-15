@@ -119,6 +119,11 @@ ssh -i ~/.ssh/quinigana_vps administrator@82.165.24.70
 > VPS (muere bajo la cuenta SYSTEM, error 1067). Se usa la version portable de
 > Win32-OpenSSH, que registra el servicio correctamente con `install-sshd.ps1`.
 
+`sshd_config` esta endurecido: `PasswordAuthentication no`, solo clave publica.
+Copia de la configuracion previa en `sshd_config.bak-harden`. Antes de tocarlo,
+valida con `sshd.exe -t` y comprueba que la clave sigue en
+`administrators_authorized_keys`; sin eso puedes quedarte fuera del servidor.
+
 ### Servicios y arranque automatico
 
 Apache, MySQL y el backend **no corren como servicios de Windows**: son procesos
@@ -284,14 +289,23 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
 - **Migraciones**: la tabla `schema_migrations` no existe en produccion (el
   esquema se monto a mano), asi que `npm run migrate` intentaria aplicarlas todas
   desde cero. Aplica los cambios de esquema uno a uno.
+- **El esquema de produccion va por detras del codigo**: un `dist` compilado del
+  repositorio actual espera columnas que la base de datos no tiene
+  (`challenges.expired_at`, `users.deleted_at` y probablemente mas), y el backend
+  muere al consultarlas. Produccion corre un `dist` estable con los arreglos
+  aplicados; alinearlo del todo exige revisar las migraciones 001-029 contra el
+  esquema real y aplicar las que falten, con copia de seguridad previa.
 - **SMTP sin configurar**: recuperacion de contraseña y notificaciones por correo
   no funcionan.
 
 ## Pendiente
 
-- Cerrar el puerto 3389 (RDP) en el firewall de STRATO y eliminar la regla
-  comodin `0.0.0.0/ANY`, que deja todos los puertos abiertos a internet.
+- **Firewall de STRATO**: eliminar la regla comodin `0.0.0.0/ANY`, que deja
+  todos los puertos abiertos a internet, y quitar el 3389 (RDP) o limitarlo a
+  una IP concreta. Solo hacen falta 22, 80, 443 y 8080. Se gestiona en el panel
+  del proveedor, no en el firewall de Windows.
 - Cambiar la contraseña de Administrator del VPS.
+- Alinear el esquema de la base de datos con el codigo (ver arriba).
 - Configurar SMTP.
 - Instalar Redis o silenciar su health check.
 
