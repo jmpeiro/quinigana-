@@ -207,6 +207,11 @@ Get-ChildItem $w -Exclude ".well-known" | Remove-Item -Recurse -Force
 > de la SPA, y un `.htaccess` con `RewriteBase` propio provoca bucles de
 > redireccion (HTTP 500 en las rutas internas de Angular).
 
+> Los iconos del PWA viven en `public/img/`, no en `public/icons/`: este Apache
+> devuelve 404 para todo lo que cuelgue de `/icons/`, mientras que el mismo
+> fichero servido desde `/img/` o desde la raiz responde 200. La causa esta en
+> la instalacion de EasyPHP; renombrar la carpeta lo evita.
+
 ### Backend
 
 ```bash
