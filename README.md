@@ -248,7 +248,8 @@ Las sensibles solo existen en el `.env` del servidor, nunca en el repositorio.
 | `FRONTEND_URL` | `https://quinigana.com` — controla el CORS |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | consola de Google Cloud |
 | `GOOGLE_CALLBACK_URL` | `https://quinigana.com/api/auth/google/callback` |
-| `FOOTBALL_DATA_API_KEY` | clave de football-data.org |
+| `FOOTBALL_DATA_API_KEY` | clave de football-data.org (Primera) |
+| `API_FOOTBALL_KEY` | clave de dashboard.api-football.com (Segunda). Sin ella esos partidos se quedan sin marcador en vivo |
 | `RATE_LIMIT_MAX` | 1000 por ventana de 15 min |
 | `REDIS_ENABLED` | `false` si no hay Redis instalado |
 | `SMTP_*` | pendiente de configurar: el envio de correo no funciona |
@@ -271,6 +272,7 @@ entre minutos y horas en propagarse.
 |--------|-----|------------|
 | football-data.org | Clasificaciones, partidos y **resultados en vivo** de Primera | El plan gratuito **no incluye Segunda** (403) |
 | eduardolosilla.es | Los 15 partidos oficiales de la quiniela | Scraping: puede romperse si cambia el HTML |
+| API-Football | Resultados en vivo de **Segunda** | Necesita `API_FOOTBALL_KEY` propia; plan gratuito de 100 peticiones/dia |
 
 La quiniela mezcla Primera y Segunda, asi que football-data no basta por si solo.
 El boton **Cargar La Quiniela (15 partidos)** usa el scraper.

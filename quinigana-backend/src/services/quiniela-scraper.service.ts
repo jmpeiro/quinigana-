@@ -267,6 +267,25 @@ export class QuinielaScraper {
       }
     }
 
+    // Segunda is outside football-data's free tier, so it comes from
+    // API-Football, which does cover it. Requires API_FOOTBALL_KEY; without it
+    // those fixtures simply stay without a live score.
+    try {
+      const { ApiFootballService } = await import('./api-football.service');
+      for (const fixture of await ApiFootballService.getResultsByDivision('segunda')) {
+        if (!fixture.home_team) continue;
+        const value = {
+          home_score: fixture.home_score,
+          away_score: fixture.away_score,
+          status: fixture.status,
+        };
+        results.set(normalizeTeamName(fixture.home_team), value);
+        results.set(fixture.home_team.toLowerCase().trim(), value);
+      }
+    } catch {
+      // No key, quota exhausted or provider down: keep the Primera scores.
+    }
+
     this.liveCache = { data: results, timestamp: Date.now() };
     return results;
   }

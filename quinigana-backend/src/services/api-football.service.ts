@@ -101,6 +101,52 @@ export class ApiFootballService {
     return [];
   }
 
+  /**
+   * Live/finished scores for a division, keyed by home team name.
+   *
+   * Exists because football-data.org's free tier does not cover Segunda: the
+   * quiniela mixes both divisions, so those five or six fixtures would
+   * otherwise never show a score.
+   */
+  static async getResultsByDivision(
+    division: 'primera' | 'segunda'
+  ): Promise<Array<{ home_team: string; away_team: string; home_score: number; away_score: number; status: string }>> {
+    if (!env.apiFootball.apiKey) {
+      return [];
+    }
+
+    const league = this.resolveLeagueId(division);
+    const season = (await this.getCurrentSeasonFromApi(league)) ?? this.currentSeasonYear();
+
+    const today = new Date();
+    const from = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const data = await this.httpGet<any>(
+      `/fixtures?league=${league}&season=${season}&from=${from}&to=${to}`
+    );
+
+    const out: Array<{ home_team: string; away_team: string; home_score: number; away_score: number; status: string }> = [];
+
+    for (const fixture of data?.response ?? []) {
+      const home = fixture?.goals?.home;
+      const away = fixture?.goals?.away;
+      if (home === null || home === undefined || away === null || away === undefined) {
+        continue;
+      }
+
+      out.push({
+        home_team: fixture?.teams?.home?.name ?? '',
+        away_team: fixture?.teams?.away?.name ?? '',
+        home_score: home,
+        away_score: away,
+        status: fixture?.fixture?.status?.short === 'FT' ? 'FINISHED' : 'IN_PLAY',
+      });
+    }
+
+    return out;
+  }
+
   private static httpGet<T = ApiFootballResponse>(path: string): Promise<T> {
     return new Promise((resolve, reject) => {
       const headers: Record<string, string> = {};
