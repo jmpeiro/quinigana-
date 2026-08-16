@@ -272,7 +272,8 @@ entre minutos y horas en propagarse.
 |--------|-----|------------|
 | football-data.org | Clasificaciones, partidos y **resultados en vivo** de Primera | El plan gratuito **no incluye Segunda** (403) |
 | eduardolosilla.es | Los 15 partidos oficiales de la quiniela | Scraping: puede romperse si cambia el HTML |
-| API-Football | Resultados en vivo de **Segunda** | El plan gratuito solo llega a la temporada 2024: **no sirve para la temporada en curso** |
+| static.dataradar.es | **Resultados en vivo** de los 15 partidos, Primera y Segunda | JSON publico sin clave; es el feed que consume el propio sitio del cupon |
+| API-Football | Alternativa para Segunda, sin usar | El plan gratuito solo llega a la temporada 2024 |
 
 La quiniela mezcla Primera y Segunda, asi que football-data no basta por si solo.
 El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
@@ -286,16 +287,18 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
 > fuente anterior devuelve 404 y el sitio del cupon pinta su marcador con
 > JavaScript, asi que el HTML no trae nada.
 
-> **Segunda no tiene marcador en vivo, y hoy no hay forma gratuita de tenerlo.**
-> football-data.org no la cubre en su plan gratuito (403) y API-Football limita
-> el suyo a las temporadas 2022-2024, asi que tampoco sirve para la temporada en
-> curso. Se probaron ademas seis fuentes de scraping: unas devuelven 404 y el
-> resto pinta el marcador con JavaScript.
+> Los **resultados en vivo** de los 15 partidos, Segunda incluida, salen de
+> `static.dataradar.es/marcador/json/partidos.json`: el feed JSON que el propio
+> sitio del cupon usa para su marcador (aparece en su configuracion como
+> `urlJornadaEnVivo`). No necesita clave.
 >
-> El codigo para Segunda ya esta escrito (`ApiFootballService.getResultsByDivision`,
-> conectado en `getLiveResults`): contratando cualquiera de los dos proveedores,
-> basta con poner la clave en el `.env`. Mientras tanto esos partidos se cargan a
-> mano en Panel Admin -> Enviar Resultados, que es donde cuentan para puntuar.
+> Se llego ahi despues de descartar las dos APIs de futbol —ambas reservan la
+> temporada en curso a planes de pago— y seis fuentes de scraping, que devuelven
+> 404 o pintan el marcador con JavaScript.
+>
+> Cuidado al parsearlo: manda `0` en los goles de los partidos que aun no han
+> empezado, asi que hay que mirar el campo `estado` para no confundirlos con un
+> 0-0 real.
 
 ---
 

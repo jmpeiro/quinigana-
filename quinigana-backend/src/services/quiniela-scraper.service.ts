@@ -63,6 +63,9 @@ export class QuinielaScraper {
   // (Primera + Segunda mixed) are read from eduardolosilla.es instead.
   private static readonly URL = 'https://www.eduardolosilla.es/quiniela';
 
+  // Scoreboard feed the coupon site itself consumes (urlJornadaEnVivo).
+  private static readonly LIVE_URL = 'https://static.dataradar.es/marcador/json/partidos.json';
+
   private static liveCache: {
     data: Map<string, { home_score: number; away_score: number; status: string }>;
     timestamp: number;
@@ -225,74 +228,51 @@ export class QuinielaScraper {
 
     const results = new Map<string, { home_score: number; away_score: number; status: string }>();
 
-    // Scores come from football-data.org rather than from scraping: the old
-    // source (resultados-futbol.com) now 404s, and the coupon site renders its
-    // scoreboard client-side, so there is nothing to read in the HTML.
-    // Only Primera is covered by the free tier; Segunda returns 403 and is
-    // simply skipped, leaving those matches without a live score.
-    const apiKey = env.footballData?.apiKey;
-    if (!apiKey) {
-      this.liveCache = { data: results, timestamp: Date.now() };
-      return results;
-    }
-
-    const today = new Date();
-    const from = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-    for (const competition of ['PD', 'SD']) {
-      try {
-        const payload = await this.fetchJson(
-          `https://api.football-data.org/v4/competitions/${competition}/matches?dateFrom=${from}&dateTo=${to}`,
-          apiKey
-        );
-
-        for (const match of payload?.matches ?? []) {
-          const home = match?.score?.fullTime?.home;
-          const away = match?.score?.fullTime?.away;
-          if (home === null || home === undefined || away === null || away === undefined) {
-            continue;
-          }
-
-          const homeName: string = match.homeTeam?.shortName || match.homeTeam?.name || '';
-          if (!homeName) continue;
-
-          const value = { home_score: home, away_score: away, status: match.status };
-          results.set(normalizeTeamName(homeName), value);
-          results.set(homeName.toLowerCase().trim(), value);
-        }
-      } catch {
-        // A competition outside the current plan (Segunda) or a transient
-        // failure must not drop the scores we already collected.
-      }
-    }
-
-    // Segunda is outside football-data's free tier, so it comes from
-    // API-Football, which does cover it. Requires API_FOOTBALL_KEY; without it
-    // those fixtures simply stay without a live score.
+    // Scoreboard feed behind the coupon site: plain JSON, no key, and it covers
+    // the whole coupon, Segunda included. Both football APIs gate the current
+    // season behind paid plans, and every HTML source renders its scoreboard
+    // client-side, so this is the only free feed with Segunda scores.
     try {
-      const { ApiFootballService } = await import('./api-football.service');
-      for (const fixture of await ApiFootballService.getResultsByDivision('segunda')) {
-        if (!fixture.home_team) continue;
+      const payload = await this.fetchJson(this.LIVE_URL);
+
+      for (const match of Array.isArray(payload) ? payload : []) {
+        // The feed sends 0-0 for fixtures that have not kicked off yet, so the
+        // score alone cannot tell them apart from a real goalless draw: use the
+        // textual state and skip anything still pending.
+        const estado: string = match?.estado ?? '';
+        const started = estado !== '' && !/sin\s*(comenzar|empezar)/i.test(estado);
+        if (!started) continue;
+
+        const home = match?.local_goles;
+        const away = match?.visitante_goles;
+        if (home === null || home === undefined || away === null || away === undefined) {
+          continue;
+        }
+
+        const homeName: string = match?.local ?? '';
+        if (!homeName) continue;
+
         const value = {
-          home_score: fixture.home_score,
-          away_score: fixture.away_score,
-          status: fixture.status,
+          home_score: Number(home),
+          away_score: Number(away),
+          status: /finalizado/i.test(estado) ? 'FINISHED' : 'IN_PLAY',
         };
-        results.set(normalizeTeamName(fixture.home_team), value);
-        results.set(fixture.home_team.toLowerCase().trim(), value);
+
+        results.set(normalizeTeamName(homeName), value);
+        results.set(homeName.toLowerCase().trim(), value);
       }
     } catch {
-      // No key, quota exhausted or provider down: keep the Primera scores.
+      // Feed unreachable: callers fall back to whatever the admin entered.
     }
 
     this.liveCache = { data: results, timestamp: Date.now() };
     return results;
   }
 
-  private static fetchJson(url: string, apiKey: string): Promise<any> {
+  private static fetchJson(url: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      const req = https.get(url, { headers: { 'X-Auth-Token': apiKey } }, (res) => {
+      const headers = { 'User-Agent': this.getRandomUserAgent(), 'Accept': 'application/json' };
+      const req = https.get(url, { headers }, (res) => {
         if (res.statusCode && res.statusCode >= 400) {
           res.resume();
           reject(new Error(`football-data responded ${res.statusCode}`));
