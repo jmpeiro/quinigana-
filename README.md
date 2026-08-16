@@ -252,7 +252,8 @@ Las sensibles solo existen en el `.env` del servidor, nunca en el repositorio.
 | `API_FOOTBALL_KEY` | clave de dashboard.api-football.com (Segunda). Sin ella esos partidos se quedan sin marcador en vivo |
 | `RATE_LIMIT_MAX` | 1000 por ventana de 15 min |
 | `REDIS_ENABLED` | `false` si no hay Redis instalado |
-| `SMTP_*` | pendiente de configurar: el envio de correo no funciona |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Postfix propio en `mail.jm2informatica.com:465`. El codigo activa TLS solo cuando el puerto es 465 |
+| `EMAIL_FROM` | remitente visible de las notificaciones |
 
 ### Google OAuth
 
@@ -320,8 +321,10 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
   muere al consultarlas. Produccion corre un `dist` estable con los arreglos
   aplicados; alinearlo del todo exige revisar las migraciones 001-029 contra el
   esquema real y aplicar las que falten, con copia de seguridad previa.
-- **SMTP sin configurar**: recuperacion de contraseña y notificaciones por correo
-  no funcionan.
+- **Invitaciones a grupos**: no existe "añadir miembro". El admin invita y el
+  invitado acepta desde `/groups/invitations`; nadie entra en un grupo sin
+  aceptarlo. Un usuario invitado que aparezca con "0 grupos" simplemente no ha
+  aceptado todavia.
 
 ## Pendiente
 
@@ -331,7 +334,6 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
   del proveedor, no en el firewall de Windows.
 - Cambiar la contraseña de Administrator del VPS.
 - Alinear el esquema de la base de datos con el codigo (ver arriba).
-- Configurar SMTP.
 - Instalar Redis o silenciar su health check.
 
 ---
