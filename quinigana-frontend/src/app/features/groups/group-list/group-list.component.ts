@@ -32,19 +32,20 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           <mat-icon>refresh</mat-icon>
         </button>
 
-        @if (pendingCount() > 0) {
-          <button
-            mat-raised-button
-            class="invitations-btn"
-            [matBadge]="pendingCount()"
-            matBadgeColor="warn"
-            matBadgeSize="small"
-            (click)="navigateToInvitations()"
-          >
-            <mat-icon>mail</mat-icon>
-            Pending Invitations
-          </button>
-        }
+        <!-- Siempre visible: si solo apareciera con invitaciones pendientes,
+             no habria forma de llegar a la pantalla para comprobarlo. -->
+        <button
+          mat-raised-button
+          class="invitations-btn"
+          [matBadge]="pendingCount()"
+          [matBadgeHidden]="pendingCount() === 0"
+          matBadgeColor="warn"
+          matBadgeSize="small"
+          (click)="navigateToInvitations()"
+        >
+          <mat-icon>mail</mat-icon>
+          Invitaciones
+        </button>
       </div>
 
       @if (loading()) {

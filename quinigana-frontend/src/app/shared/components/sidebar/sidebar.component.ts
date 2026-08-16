@@ -465,6 +465,7 @@ export class SidebarComponent {
     { icon: 'dashboard', label: 'Dashboard', route: '/dashboard' },
     { icon: 'sports_soccer', label: 'Jornadas', route: '/quiniela/jornadas' },
     { icon: 'group', label: 'Grupos', route: '/groups' },
+    { icon: 'mail', label: 'Invitaciones', route: '/groups/invitations' },
     { icon: 'bar_chart', label: 'Estadisticas', route: '/stats' },
     { icon: 'notifications', label: 'Notificaciones', route: '/notifications' },
     { icon: 'person', label: 'Perfil', route: '/profile' },
