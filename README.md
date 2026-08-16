@@ -272,7 +272,7 @@ entre minutos y horas en propagarse.
 |--------|-----|------------|
 | football-data.org | Clasificaciones, partidos y **resultados en vivo** de Primera | El plan gratuito **no incluye Segunda** (403) |
 | eduardolosilla.es | Los 15 partidos oficiales de la quiniela | Scraping: puede romperse si cambia el HTML |
-| API-Football | Resultados en vivo de **Segunda** | Necesita `API_FOOTBALL_KEY` propia; plan gratuito de 100 peticiones/dia |
+| API-Football | Resultados en vivo de **Segunda** | El plan gratuito solo llega a la temporada 2024: **no sirve para la temporada en curso** |
 
 La quiniela mezcla Primera y Segunda, asi que football-data no basta por si solo.
 El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
@@ -284,8 +284,18 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
 
 > Los **resultados en vivo** ya no se raspan: salen de football-data.org. La
 > fuente anterior devuelve 404 y el sitio del cupon pinta su marcador con
-> JavaScript, asi que el HTML no trae nada. Como Segunda no entra en el plan
-> gratuito, esos partidos se quedan sin marcador en vivo.
+> JavaScript, asi que el HTML no trae nada.
+
+> **Segunda no tiene marcador en vivo, y hoy no hay forma gratuita de tenerlo.**
+> football-data.org no la cubre en su plan gratuito (403) y API-Football limita
+> el suyo a las temporadas 2022-2024, asi que tampoco sirve para la temporada en
+> curso. Se probaron ademas seis fuentes de scraping: unas devuelven 404 y el
+> resto pinta el marcador con JavaScript.
+>
+> El codigo para Segunda ya esta escrito (`ApiFootballService.getResultsByDivision`,
+> conectado en `getLiveResults`): contratando cualquiera de los dos proveedores,
+> basta con poner la clave en el `.env`. Mientras tanto esos partidos se cargan a
+> mano en Panel Admin -> Enviar Resultados, que es donde cuentan para puntuar.
 
 ---
 
