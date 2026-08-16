@@ -225,28 +225,74 @@ export class QuinielaScraper {
 
     const results = new Map<string, { home_score: number; away_score: number; status: string }>();
 
-    // Fetch sequentially to avoid 429 rate limiting from the site
-    try {
-      const primeraHtml = await this.fetchPage('https://www.resultados-futbol.com/competicion/primera/resultados');
-      this.parseResultsPage(primeraHtml, results);
-    } catch {
-      // Primera fetch failed - continue with segunda
+    // Scores come from football-data.org rather than from scraping: the old
+    // source (resultados-futbol.com) now 404s, and the coupon site renders its
+    // scoreboard client-side, so there is nothing to read in the HTML.
+    // Only Primera is covered by the free tier; Segunda returns 403 and is
+    // simply skipped, leaving those matches without a live score.
+    const apiKey = env.footballData?.apiKey;
+    if (!apiKey) {
+      this.liveCache = { data: results, timestamp: Date.now() };
+      return results;
     }
 
-    // Random delay between requests to appear more human-like
-    await new Promise(resolve => setTimeout(resolve, this.getRandomDelay()));
+    const today = new Date();
+    const from = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    try {
-      const segundaHtml = await this.fetchPage('https://www.resultados-futbol.com/competicion/segunda/resultados');
-      this.parseResultsPage(segundaHtml, results);
-    } catch {
-      // Segunda fetch failed - return whatever we have
+    for (const competition of ['PD', 'SD']) {
+      try {
+        const payload = await this.fetchJson(
+          `https://api.football-data.org/v4/competitions/${competition}/matches?dateFrom=${from}&dateTo=${to}`,
+          apiKey
+        );
+
+        for (const match of payload?.matches ?? []) {
+          const home = match?.score?.fullTime?.home;
+          const away = match?.score?.fullTime?.away;
+          if (home === null || home === undefined || away === null || away === undefined) {
+            continue;
+          }
+
+          const homeName: string = match.homeTeam?.shortName || match.homeTeam?.name || '';
+          if (!homeName) continue;
+
+          const value = { home_score: home, away_score: away, status: match.status };
+          results.set(normalizeTeamName(homeName), value);
+          results.set(homeName.toLowerCase().trim(), value);
+        }
+      } catch {
+        // A competition outside the current plan (Segunda) or a transient
+        // failure must not drop the scores we already collected.
+      }
     }
 
-    // Cache the results
     this.liveCache = { data: results, timestamp: Date.now() };
-
     return results;
+  }
+
+  private static fetchJson(url: string, apiKey: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const req = https.get(url, { headers: { 'X-Auth-Token': apiKey } }, (res) => {
+        if (res.statusCode && res.statusCode >= 400) {
+          res.resume();
+          reject(new Error(`football-data responded ${res.statusCode}`));
+          return;
+        }
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
+      req.setTimeout(15000, () => { req.destroy(new Error('football-data timeout')); });
+      req.on('error', reject);
+    });
   }
 
   private static parseResultsPage(html: string, results: Map<string, { home_score: number; away_score: number; status: string }>): void {

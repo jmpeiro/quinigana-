@@ -269,7 +269,7 @@ entre minutos y horas en propagarse.
 
 | Fuente | Uso | Limitacion |
 |--------|-----|------------|
-| football-data.org | Clasificaciones y partidos de Primera | El plan gratuito **no incluye Segunda** (403) |
+| football-data.org | Clasificaciones, partidos y **resultados en vivo** de Primera | El plan gratuito **no incluye Segunda** (403) |
 | eduardolosilla.es | Los 15 partidos oficiales de la quiniela | Scraping: puede romperse si cambia el HTML |
 
 La quiniela mezcla Primera y Segunda, asi que football-data no basta por si solo.
@@ -279,6 +279,11 @@ El boton **Cargar La Quiniela (15 partidos)** usa el scraper.
 > `besoccer.es` y sirve el feed general del sitio en lugar del boleto. Si vuelve
 > a romperse, revisa `quiniela-scraper.service.ts`: la extraccion depende del
 > atributo `title` de cada fila del cupon.
+
+> Los **resultados en vivo** ya no se raspan: salen de football-data.org. La
+> fuente anterior devuelve 404 y el sitio del cupon pinta su marcador con
+> JavaScript, asi que el HTML no trae nada. Como Segunda no entra en el plan
+> gratuito, esos partidos se quedan sin marcador en vivo.
 
 ---
 
